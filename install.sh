@@ -1,30 +1,18 @@
 #!/usr/bin/env bash
 # Install Spatial Linux into the desktop's application menu.
 #
-# Works both natively and from inside a distrobox container: when run in a
-# container it exports the launcher to the host, since that is where the
-# application menu lives.
+# Works on the host -- also on Bazzite and other immutable systems, where it
+# fetches PyQt6 into a private folder -- and from inside a distrobox
+# container, where it exports the launcher to the host's menu.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 
-# On an immutable system the host usually has no PyQt6 and cannot get it
-# from apt or dnf. Installing from there would add a menu entry that can
-# never start, so explain the container route instead.
-if [ -e /run/ostree-booted ] && [ ! -e /run/.containerenv ] \
-   && ! python3 -c "import PyQt6.QtWidgets" 2>/dev/null; then
-    cat >&2 <<'MSG'
-This looks like an immutable system (Bazzite, Silverblue, Kinoite, ...).
-Spatial Linux runs inside a distrobox container there. Run:
-
-    distrobox enter ubuntu          # or: distrobox create -n ubuntu -i ubuntu:24.04
-    sudo apt install -y python3-pyqt6
-    ./install.sh                    # from this folder, inside the container
-
-The menu entry it creates starts Spatial Linux in the container.
-MSG
-    exit 1
-fi
+# Make sure PyQt6 is there -- the system's, or a private copy fetched once
+# (the case on Bazzite and other immutable systems). Done here, with its
+# progress in the terminal, so the first start from the menu is instant.
+chmod +x "$HERE/spatiallinux.sh"
+"$HERE/spatiallinux.sh" --setup
 DESKTOP_FILE="$HERE/spatiallinux.desktop"
 
 cat > "$DESKTOP_FILE" <<EOF

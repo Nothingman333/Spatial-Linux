@@ -65,11 +65,14 @@ jobs:
           ```bash
           # Needs PipeWire 1.0 or newer (Ubuntu 24.04+, Fedora 40+,
           # Debian 13+, Arch, Bazzite...). Details in the README.
-          sudo apt-get install -y python3-pyqt6   # the only dependency
           tar xf spatiallinux-*.tar.gz
           cd spatiallinux-*/
           ./install.sh                            # adds it to the app menu
           ```
+
+          Works the same on Bazzite and other immutable systems, no
+          container needed: if PyQt6 is missing, it is downloaded once into
+          Spatial Linux's own folder.
 
           Or run it without installing: `./spatiallinux.sh`
 

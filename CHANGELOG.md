@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.9.0
+
+- **Installs the same way everywhere, Bazzite included — no container.**
+  If the system has no PyQt6, Spatial Linux downloads it once (about 90 MB)
+  into its own folder (`~/.local/share/spatiallinux/pyenv`) and runs from
+  there: no root, no sudo, nothing installed system-wide. `install.sh` does
+  this step with a progress bar, so the first start from the menu is
+  instant; started from the menu instead, it shows a notification while it
+  gets ready. A system PyQt6, where there is one, is still used first.
+- On the host, Qt now picks its display backend itself (native Wayland);
+  XWayland is only forced inside a distrobox container, where the native
+  backend left the window unmapped.
+
 ## v1.8.1
 
 - **Bazzite / immutable systems**: the "needs PyQt6" message used to

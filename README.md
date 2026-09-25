@@ -91,8 +91,14 @@ pipewire --version                 # should be 1.0 or newer
 - Linux with **PipeWire** and **WirePlumber** (the default on current Fedora,
   Ubuntu, Bazzite, and others). The command-line tools `pw-cli`, `pw-dump`,
   `pw-metadata` and `wpctl` must be available.
-- **Python 3.10+** and **PyQt6**. That's all: the measured head model used
-  by 3D Surround ships with the app, so nothing else needs installing.
+- **Python 3.10+**, which every desktop Linux has.
+- **PyQt6** — nothing to do: if your system doesn't have it, Spatial Linux
+  downloads it once (about 90 MB) into its own folder the first time it
+  starts. No root, no sudo, nothing installed system-wide. If you'd rather
+  use your distribution's package, install it first and that one is used.
+
+The measured head model used by 3D Surround ships with the app, so nothing
+else is needed.
 
 ## Install
 
@@ -100,21 +106,23 @@ Download the latest `spatiallinux-<version>.tar.gz` from
 [Releases](https://github.com/Nothingman333/Spatial-Linux/releases), then:
 
 ```bash
-# Debian / Ubuntu (also inside a distrobox container)
-sudo apt-get install -y python3-pyqt6
-
-# Fedora
-sudo dnf install -y python3-pyqt6
-
-# Arch / Manjaro
-sudo pacman -S --needed python-pyqt6
-
 tar xf spatiallinux-*.tar.gz
 cd spatiallinux-*/
 ./install.sh          # adds Spatial Linux to your application menu
 ```
 
+That works the same on every distribution, **Bazzite and other immutable
+systems included** — no container needed. The first time, `install.sh`
+downloads PyQt6 into Spatial Linux's own folder if your system doesn't have
+it, showing its progress.
+
 To try it without installing, run `./spatiallinux.sh` from the folder.
+
+Optional: to use your distribution's PyQt6 instead of the downloaded copy,
+install it before running `install.sh`:
+`sudo apt install python3-pyqt6` (Debian/Ubuntu),
+`sudo dnf install python3-pyqt6` (Fedora),
+`sudo pacman -S python-pyqt6` (Arch).
 
 ## Updating
 
@@ -138,26 +146,14 @@ version; if you just want things to work, use that one.
 
 Close the app, delete its folder, and remove the menu entry:
 `~/.local/share/applications/spatiallinux.desktop` (or the exported entry,
-if you used distrobox). To also forget your settings, delete
-`~/.local/share/spatiallinux`.
+if you used distrobox). To also remove your settings and the downloaded
+PyQt6 copy, delete `~/.local/share/spatiallinux`.
 
-### Bazzite, Silverblue and other immutable systems
+### Running it in a distrobox container instead
 
-`apt` and `dnf` cannot install PyQt6 on the host of these systems, so
-Spatial Linux runs inside a distrobox container. The container shares
-PipeWire with the host, so the sound works normally. In a terminal:
-
-```bash
-distrobox create -n ubuntu -i ubuntu:24.04   # only if you don't have one yet
-distrobox enter ubuntu
-sudo apt install -y python3-pyqt6
-cd ~/spatiallinux-*/        # the folder you extracted
-./install.sh
-exit
-```
-
-Run `install.sh` **inside** the container: the menu entry it creates then
-starts Spatial Linux there. Run on the host, it stops and shows these steps.
+Not needed any more, but still works: inside the container, run
+`./install.sh` from the Spatial Linux folder and the menu entry it creates
+starts Spatial Linux in the container.
 
 ## Usage
 
