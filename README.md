@@ -118,6 +118,26 @@ it, showing its progress.
 
 To try it without installing, run `./spatiallinux.sh` from the folder.
 
+### Or as a Flatpak
+
+Each release also has **`spatiallinux.flatpak`**. Download it, then:
+
+```bash
+flatpak install --user spatiallinux.flatpak
+```
+
+It needs nothing else and downloads nothing on first start (PyQt6 is
+inside). Two things to know:
+
+- To drive your PipeWire it runs PipeWire's own tools (`pw-cli`, `wpctl`,
+  …) **on your system** through `flatpak-spawn`, which needs the
+  `org.freedesktop.Flatpak` permission. That is what lets it work exactly
+  like the normal version; it is the reason Spatial Linux is not a strictly
+  sandboxed app.
+- The Flatpak does not update itself yet: to update, install the new
+  `spatiallinux.flatpak` the same way. Your settings are shared with the
+  normal version and are kept.
+
 Optional: to use your distribution's PyQt6 instead of the downloaded copy,
 install it before running `install.sh`:
 `sudo apt install python3-pyqt6` (Debian/Ubuntu),
