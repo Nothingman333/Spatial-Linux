@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.10.0
+
+- **Flatpak.** Each release now also has `spatiallinux.flatpak`: install it
+  with `flatpak install --user spatiallinux.flatpak`. PyQt6 is inside, so
+  nothing is downloaded at first start. It drives your PipeWire with the
+  system's own tools (through `flatpak-spawn`) and shares its settings with
+  the normal version.
+- **A real progress window for the one-time download** of PyQt6 when
+  Spatial Linux is started from the menu (kdialog on KDE, zenity on GNOME):
+  percentage and which file is downloading. In a terminal, a progress bar.
+- Fix: the logo beside the name was cropped on HiDPI (scaled) screens.
+
 ## v1.9.0
 
 - **Installs the same way everywhere, Bazzite included — no container.**
