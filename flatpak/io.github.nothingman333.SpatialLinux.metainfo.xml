@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.nothingman333.SpatialLinux</id>
+  <name>Spatial Linux</name>
+  <summary>3D sound, per-app volume and an equaliser for PipeWire</summary>
+  <developer id="io.github.nothingman333">
+    <name>Sali</name>
+  </developer>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <description>
+    <p>
+      Spatial Linux adds 3D sound to every app on your Linux desktop. It
+      runs entirely on PipeWire's built-in filters and does not touch your
+      sound drivers.
+    </p>
+    <ul>
+      <li>3D Surround for headphones, with a head model measured on a real head</li>
+      <li>Ambience, Fidelity, Bass Boost and a Night Mode</li>
+      <li>A 10-band equaliser with presets</li>
+      <li>Volume and mute for each app that is playing sound</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">io.github.nothingman333.SpatialLinux.desktop</launchable>
+  <url type="homepage">https://github.com/Nothingman333/Spatial-Linux</url>
+  <url type="bugtracker">https://github.com/Nothingman333/Spatial-Linux/issues</url>
+  <url type="donation">https://ko-fi.com/W7W2DP17Q</url>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/Nothingman333/Spatial-Linux/HEAD/docs/screenshot.jpg</image>
+    </screenshot>
+  </screenshots>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="1.9.0" date="2026-09-25"/>
+  </releases>
+</component>

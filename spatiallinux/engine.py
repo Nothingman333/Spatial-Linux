@@ -41,11 +41,32 @@ BUNDLED_BINAURAL_IR = os.path.join(os.path.dirname(__file__), "data",
                                    "binaural_ir.wav")
 
 
+# Inside a Flatpak the PipeWire tools are the host's, run through
+# flatpak-spawn: the sandbox has none of its own, and the host's always match
+# the PipeWire that is actually running. The files the chain reads must then
+# be ones the host can see too -- the data folder is shared for that.
+IN_FLATPAK = bool(os.environ.get("FLATPAK_ID"))
+HOST = ["flatpak-spawn", "--host"] if IN_FLATPAK else []
+
+
+def host_command(args: list[str]) -> list[str]:
+    """`args` as it must be run to reach the host's PipeWire tools."""
+    return HOST + list(args)
+
+
 def binaural_ir_path() -> str:
     """The cue file the graph loads: the bundled one when present, else one
     generated on this machine (measured if it can be, analytic if not)."""
     if os.path.exists(BUNDLED_BINAURAL_IR):
-        return BUNDLED_BINAURAL_IR
+        if not IN_FLATPAK:
+            return BUNDLED_BINAURAL_IR
+        # /app is invisible to the host's pipewire; hand it a shared copy
+        copy = os.path.join(RUNTIME_DIR, "binaural_ir_bundled.wav")
+        if (not os.path.exists(copy)
+                or os.path.getsize(copy) != os.path.getsize(BUNDLED_BINAURAL_IR)):
+            os.makedirs(RUNTIME_DIR, exist_ok=True)
+            shutil.copyfile(BUNDLED_BINAURAL_IR, copy)
+        return copy
     if not os.path.exists(BINAURAL_IR_PATH):
         generate_binaural_ir(BINAURAL_IR_PATH)
     return BINAURAL_IR_PATH
@@ -188,14 +209,21 @@ REQUIRED_TOOLS = ("pipewire", "pw-cli", "pw-dump", "pw-metadata", "wpctl")
 
 
 def missing_tools() -> list[str]:
-    return [t for t in REQUIRED_TOOLS if shutil.which(t) is None]
+    if not IN_FLATPAK:
+        return [t for t in REQUIRED_TOOLS if shutil.which(t) is None]
+    if shutil.which("flatpak-spawn") is None:
+        return ["flatpak-spawn"]
+    out = _run("sh", "-c", " ".join(
+        f"command -v {t} >/dev/null || echo {t};" for t in REQUIRED_TOOLS))
+    return [t for t in out.stdout.split() if t]
 
 
 def _run(*args, **kw):
     """Run a command; a missing or failing tool gives an empty result rather
     than an exception, so one absent utility cannot take the app down."""
     try:
-        return subprocess.run(args, capture_output=True, text=True, **kw)
+        return subprocess.run(host_command(args), capture_output=True,
+                              text=True, **kw)
     except OSError:
         return subprocess.CompletedProcess(args, 127, "", "")
 
@@ -285,7 +313,11 @@ class SpatialEngine:
     def _recover_from_previous_crash(self):
         for line in _sh(["pgrep", "-af", "pipewire -c " + CONF_PATH]).splitlines():
             try:
-                os.kill(int(line.split()[0]), signal.SIGTERM)
+                pid = int(line.split()[0])
+                if IN_FLATPAK:                   # a host process: kill it there
+                    _run("kill", "-TERM", str(pid))
+                else:
+                    os.kill(pid, signal.SIGTERM)
             except (ValueError, IndexError, ProcessLookupError):
                 pass
 
@@ -654,8 +686,10 @@ context.modules = [
         with open(CONF_PATH, "w") as f:
             f.write(self._build_conf(state))
 
+        # (in a Flatpak, flatpak-spawn passes our terminate() on to the host
+        # process, so stopping works the same way)
         self.proc = subprocess.Popen(
-            ["pipewire", "-c", CONF_PATH],
+            host_command(["pipewire", "-c", CONF_PATH]),
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         self.sink_id = None

@@ -1,0 +1,46 @@
+# Flatpak build of Spatial Linux, on Flathub's PyQt base app (PyQt6 and the
+# KDE runtime come with it, nothing is downloaded at first start).
+#
+# The PipeWire tools are the host's, reached through flatpak-spawn
+# (org.freedesktop.Flatpak): Spatial Linux drives the session's own
+# PipeWire, and the host's tools always match it. The data folder is shared
+# with the host so the host's pipewire can read the chain the app writes --
+# and so the Flatpak and the plain install use the same settings.
+id: io.github.nothingman333.SpatialLinux
+runtime: org.kde.Platform
+runtime-version: '6.11'
+sdk: org.kde.Sdk
+base: com.riverbankcomputing.PyQt.BaseApp
+base-version: '6.11'
+command: spatiallinux
+cleanup-commands:
+  - /app/cleanup-BaseApp.sh
+build-options:
+  env:
+    - BASEAPP_REMOVE_WEBENGINE=1
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --talk-name=org.freedesktop.Flatpak
+  - --filesystem=xdg-data/spatiallinux:create
+modules:
+  - name: spatiallinux
+    buildsystem: simple
+    build-commands:
+      - install -d /app/share/spatiallinux
+      - cp -r spatiallinux presets /app/share/spatiallinux/
+      - rm -rf /app/share/spatiallinux/spatiallinux/__pycache__ /app/share/spatiallinux/spatiallinux/ui/__pycache__
+      - install -Dm755 flatpak/spatiallinux-launcher.sh /app/bin/spatiallinux
+      - install -Dm644 spatiallinux/data/spatiallinux.svg /app/share/icons/hicolor/scalable/apps/${FLATPAK_ID}.svg
+      - install -Dm644 flatpak/${FLATPAK_ID}.desktop -t /app/share/applications/
+      - install -Dm644 flatpak/${FLATPAK_ID}.metainfo.xml -t /app/share/metainfo/
+    sources:
+      - type: dir
+        path: ..
+        skip:
+          - .git
+          - .github
+          - docs
+          - tools

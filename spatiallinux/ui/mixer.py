@@ -19,7 +19,7 @@ from PyQt6.QtWidgets import (
 
 from . import theme
 from .i18n import t
-from ..engine import parse_streams
+from ..engine import parse_streams, host_command
 
 
 class MuteButton(QPushButton):
@@ -224,7 +224,8 @@ class MixerPanel(QFrame):
         proc.finished.connect(lambda *_: self._read(proc))
         proc.errorOccurred.connect(lambda *_: self._failed(proc))
         self._proc = proc
-        proc.start("pw-dump", [])
+        cmd = host_command(["pw-dump"])
+        proc.start(cmd[0], cmd[1:])
 
     def _failed(self, proc):
         if proc.error() == QProcess.ProcessError.FailedToStart:

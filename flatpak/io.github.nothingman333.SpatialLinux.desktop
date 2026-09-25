@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Spatial Linux
+Comment=3D sound, per-app volume and an equaliser for PipeWire
+Exec=spatiallinux
+Icon=io.github.nothingman333.SpatialLinux
+Terminal=false
+Categories=AudioVideo;Audio;
+Keywords=3D;surround;spatial;equalizer;equaliser;bass;headphones;volume;mixer;pipewire;
+StartupNotify=true

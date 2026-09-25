@@ -1,3 +1,4 @@
+import os
 import signal
 import sys
 import traceback
@@ -17,7 +18,7 @@ def main():
     app.setApplicationName("Spatial Linux")
     # ties the window to spatiallinux.desktop, so Wayland docks and task
     # bars show the right icon and name
-    app.setDesktopFileName("spatiallinux")
+    app.setDesktopFileName(os.environ.get("FLATPAK_ID", "spatiallinux"))
     app.setWindowIcon(QIcon(LOGO_PATH))
 
     presets.migrate_old_data()

@@ -34,21 +34,61 @@ pick_python() {
     fi
 }
 
+run_bootstrap() { python3 -m spatiallinux.bootstrap "$ENV_DIR" "$@"; }
+
+# A progress window for the one-time download when there is no terminal to
+# show it in (started from the application menu): zenity where it exists,
+# KDE's kdialog otherwise, and at least a notification if neither does.
+progress_zenity() {
+    run_bootstrap --ui zenity | zenity --progress --title="Spatial Linux" \
+        --text="Getting Spatial Linux ready…" --percentage=0 \
+        --auto-close --no-cancel --width=440 2>/dev/null
+    return "${PIPESTATUS[0]}"
+}
+
+progress_kdialog() {
+    local ref svc obj status
+    ref="$(kdialog --title "Spatial Linux" \
+           --progressbar "Getting Spatial Linux ready…" 100 2>/dev/null)" || return 2
+    svc="${ref%% *}"; obj="${ref#* }"
+    run_bootstrap --ui zenity | while IFS= read -r line; do
+        case "$line" in
+            "#"*) busctl --user call "$svc" "$obj" org.kde.kdialog.ProgressDialog \
+                      setLabelText s "${line#\# }" >/dev/null 2>&1 ;;
+            *)    busctl --user set-property "$svc" "$obj" \
+                      org.kde.kdialog.ProgressDialog value i "$line" >/dev/null 2>&1 ;;
+        esac
+    done
+    status="${PIPESTATUS[0]}"
+    busctl --user call "$svc" "$obj" org.kde.kdialog.ProgressDialog close \
+        >/dev/null 2>&1
+    return "$status"
+}
+
 setup_private_env() {
-    notify "Getting Spatial Linux ready. This happens only once and downloads about 90 MB, so it can take a minute."
-    rm -rf "$ENV_DIR"
     mkdir -p "$(dirname "$ENV_DIR")"
-    if ! python3 -m venv "$ENV_DIR"; then
-        notify "Could not create a Python environment (python3 -m venv failed). Install PyQt6 with your package manager instead, e.g. 'sudo apt install python3-pyqt6' or 'sudo dnf install python3-pyqt6'."
-        return 1
+    local status
+    if [ -t 1 ]; then                                  # a terminal: text bar
+        echo "Getting Spatial Linux ready (one-time download of PyQt6, about 95 MB)."
+        run_bootstrap --ui terminal
+        status=$?
+    elif command -v zenity >/dev/null; then
+        progress_zenity; status=$?
+    elif command -v kdialog >/dev/null && command -v busctl >/dev/null; then
+        progress_kdialog; status=$?
+        if [ "$status" = 2 ]; then                     # kdialog would not open
+            notify "Getting Spatial Linux ready. This happens only once and downloads about 95 MB."
+            run_bootstrap --ui terminal >/dev/null; status=$?
+        fi
+    else
+        notify "Getting Spatial Linux ready. This happens only once and downloads about 95 MB, so it can take a minute."
+        run_bootstrap --ui terminal >/dev/null; status=$?
     fi
-    if ! "$ENV_DIR/bin/python" -m pip install --disable-pip-version-check \
-            --progress-bar on "$PYQT_SPEC"; then
+    if [ "$status" != 0 ]; then
         rm -rf "$ENV_DIR"
-        notify "Could not download PyQt6. Check your internet connection and start Spatial Linux again."
+        notify "Could not download PyQt6. Check your internet connection and start Spatial Linux again. (Or install it with your package manager, e.g. 'sudo apt install python3-pyqt6' or 'sudo dnf install python3-pyqt6'.)"
         return 1
     fi
-    notify "Spatial Linux is ready."
 }
 
 if ! command -v python3 >/dev/null; then

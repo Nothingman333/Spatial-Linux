@@ -1,0 +1,55 @@
+# Builds the Flatpak bundle (spatiallinux.flatpak). Run by hand to test a
+# build (the bundle is kept as a workflow artifact), or from the release
+# workflow with a tag, which also attaches it to that release.
+name: Flatpak
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  flatpak:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.11
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stamp the version into the store metadata
+        run: |
+          ver="$(python3 -c 'import spatiallinux; print(spatiallinux.__version__)')"
+          sed -i "s|<release version=\\"[^\\"]*\\" date=\\"[^\\"]*\\"/>|<release version=\\"$ver\\" date=\\"$(date +%F)\\"/>|" \
+            flatpak/io.github.nothingman333.SpatialLinux.metainfo.xml
+          grep '<release ' flatpak/io.github.nothingman333.SpatialLinux.metainfo.xml
+
+      - uses: flathub-infra/flatpak-github-actions/flatpak-builder@master
+        with:
+          bundle: spatiallinux.flatpak
+          manifest-path: flatpak/io.github.nothingman333.SpatialLinux.yml
+          cache-key: flatpak-builder-${{ github.sha }}
+
+  # a plain runner, which has the gh tool, puts the bundle on the release
+  attach:
+    needs: flatpak
+    if: ${{ inputs.tag != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: "*flatpak*"
+          merge-multiple: true
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -la
+          gh release upload "${{ inputs.tag }}" spatiallinux.flatpak \
+            --clobber --repo "$GITHUB_REPOSITORY"
