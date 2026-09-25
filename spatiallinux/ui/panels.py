@@ -3,7 +3,7 @@ import math
 from PyQt6.QtCore import Qt, QRectF, QTimer, pyqtSignal
 from PyQt6.QtGui import QPainter, QColor, QPen
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSlider, QFrame,
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSlider, QFrame, QPushButton,
 )
 
 from . import theme
@@ -12,6 +12,33 @@ from .art import SphereArt
 
 PANEL_HEIGHT = 170
 ART_PANEL_HEIGHT = 330
+
+
+TOGGLE_WIDTH = 58
+
+
+def make_toggle(on: bool, slider: QSlider, on_toggle) -> QPushButton:
+    """An On / Off switch for an optional control. Off keeps the slider's
+    value (dimmed) so switching back on returns to it."""
+    btn = QPushButton()
+    btn.setObjectName("rowToggle")
+    btn.setCheckable(True)
+    btn.setFixedWidth(TOGGLE_WIDTH)
+    btn.setCursor(Qt.CursorShape.PointingHandCursor)
+
+    def show(state: bool):
+        btn.setText(t("on") if state else t("off"))
+        slider.setEnabled(state)
+
+    btn.setChecked(on)
+    show(on)
+
+    def toggled(state: bool):
+        show(state)
+        on_toggle(state)
+
+    btn.toggled.connect(toggled)
+    return btn
 
 
 class FeaturePanel(QFrame):
@@ -37,12 +64,16 @@ class FeaturePanel(QFrame):
 
     # height one extra slider row adds to the panel
     ROW_HEIGHT = 34
+    # panels where some rows have an On / Off switch leave that space in the
+    # others too, so every value lines up
+    ALIGN_TOGGLES = False
 
     def add_slider_row(self, caption: str, minimum: float, maximum: float,
                        value: float, suffix: str, decimals: int, on_change,
-                       signed: bool = False):
+                       signed: bool = False, toggle=None):
         """Add a labelled slider above the panel's hint text, grow the panel
-        to fit, and call `on_change(value)` as it moves."""
+        to fit, and call `on_change(value)` as it moves. `toggle`, if given,
+        is (initially_on, on_toggle) and adds an On / Off switch."""
         scale = 10 ** decimals
         row = QHBoxLayout()
         row.setSpacing(14)
@@ -64,6 +95,11 @@ class FeaturePanel(QFrame):
         label.setAlignment(Qt.AlignmentFlag.AlignRight |
                            Qt.AlignmentFlag.AlignVCenter)
         row.addWidget(label)
+        if toggle is not None:
+            row.addWidget(make_toggle(toggle[0], slider, toggle[1]))
+        elif self.ALIGN_TOGGLES:
+            # keep the values in one column
+            row.addSpacing(TOGGLE_WIDTH + row.spacing())
 
         def changed(raw):
             v = raw / scale
@@ -160,8 +196,11 @@ class SliderPanel(FeaturePanel):
 class SurroundPanel(FeaturePanel):
     valueChanged = pyqtSignal(float)
     lfeChanged = pyqtSignal(float)
+    lfeToggled = pyqtSignal(bool)
+    ALIGN_TOGGLES = True
 
-    def __init__(self, amount: float, lfe: float = 0.0, parent=None):
+    def __init__(self, amount: float, lfe: float = 0.0, lfe_on: bool = True,
+                 parent=None):
         super().__init__("3D Surround", parent)
         self.setFixedHeight(340)
 
@@ -199,6 +238,8 @@ class SurroundPanel(FeaturePanel):
         self.lfe_label.setAlignment(Qt.AlignmentFlag.AlignRight |
                                     Qt.AlignmentFlag.AlignVCenter)
         lfe_row.addWidget(self.lfe_label)
+        lfe_row.addWidget(make_toggle(lfe_on, self.lfe_slider,
+                                      self.lfeToggled.emit))
         self.body().addLayout(lfe_row)
 
         hint = self._hint = QLabel(t("surround_hint"))

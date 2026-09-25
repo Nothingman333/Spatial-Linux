@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.7.0
+
+- **Subwoofer, Reverb and Clarity can be switched off** in the 3D panel,
+  each with its own On / Off button. Off bypasses that effect completely;
+  the slider keeps its value (dimmed) and switching back on returns to it.
+  The on / off choice is remembered and saved in presets.
+
 ## v1.6.0
 
 Everything from the three betas, now stable:

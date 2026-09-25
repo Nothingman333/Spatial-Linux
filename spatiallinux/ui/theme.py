@@ -134,6 +134,17 @@ QPushButton#mute:checked {{
 QPushButton#mute:hover {{
     background: {PANEL_LIGHTER};
 }}
+QPushButton#rowToggle {{
+    padding: 2px 0;
+    border-radius: 8px;
+    font-size: 11px;
+}}
+QSlider::sub-page:horizontal:disabled {{
+    background: {ACCENT_DIM};
+}}
+QSlider::handle:horizontal:disabled {{
+    background: {TEXT_FAINT};
+}}
 QPushButton#globe {{
     background: {PANEL_LIGHT};
     border-radius: 17px;

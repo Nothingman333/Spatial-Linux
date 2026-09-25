@@ -280,7 +280,13 @@ class MainWindow(QMainWindow):
                 "surround_lfe": 3.0, "surround_treble": -1.0,
                 "surround_room": 0.25, "ambience_treble": -2.0,
                 # Fidelity's clarity lift, offered inside 3D as well
-                "surround_clarity": 5.0}
+                "surround_clarity": 5.0,
+                # whether each optional 3D extra is switched on (1) or off (0)
+                "surround_lfe_on": 1.0, "surround_room_on": 1.0,
+                "surround_clarity_on": 1.0}
+
+    # the 3D extras that can be switched off, each keeping its value
+    OPTIONAL_EXTRAS = ("surround_lfe", "surround_room", "surround_clarity")
 
     # the mode a first launch (and the Defaults button) comes up in
     DEFAULT_ACTIVE = "surround"
@@ -603,23 +609,35 @@ class MainWindow(QMainWindow):
             # the head. The Reverb slider turns it down with the rest.
             self.engine.set_ambience(
                 engine_mod.SURROUND_REVERB * self._remembered["surround"]
-                * self._remembered["surround_room"],
+                * self._effective("surround_room"),
                 self.state)
             # 3D's own Clarity slider drives the same shelves as Fidelity;
             # the loop above has just zeroed them for the inactive mode
-            self.engine.set_fidelity(self._remembered["surround_clarity"],
+            self.engine.set_fidelity(self._effective("surround_clarity"),
                                      self.state)
-        self.engine.set_room(self._remembered["surround_room"], self.state)
+        self.engine.set_room(self._effective("surround_room"), self.state)
         self.engine.set_treble(
             self._remembered[f"{active}_treble"]
             if active in self.TREBLE_MODES else 0.0,
             self.state)
         # the subwoofer trim belongs to the 3D mode, so it comes and goes with it
         self.engine.set_lfe(
-            self._remembered["surround_lfe"] if active == "surround" else 0.0,
+            self._effective("surround_lfe") if active == "surround" else 0.0,
             self.state)
         self.state.active = active
         self._refresh_feature_buttons()
+
+    def _effective(self, key: str) -> float:
+        """An optional 3D extra's value as the engine should get it: its
+        remembered value while switched on, nothing while off."""
+        if self._remembered.get(f"{key}_on", 1.0):
+            return self._remembered[key]
+        return 0.0
+
+    def _on_extra_toggled(self, key: str, on: bool):
+        self._remembered[f"{key}_on"] = 1.0 if on else 0.0
+        if self.state.active == "surround":
+            self._apply_exclusive("surround")
 
     def _refresh_feature_buttons(self):
         for key, btn in self.feature_buttons.items():
@@ -660,6 +678,10 @@ class MainWindow(QMainWindow):
             "ambience_treble": (state.treble if state.active == "ambience"
                                 else self.DEFAULTS["ambience_treble"]),
         }
+        # anything the state has no word on (a setting newer than the file,
+        # such as the 3D extras' on/off) starts at its default
+        for key, value in self.DEFAULTS.items():
+            self._remembered.setdefault(key, value)
         # Newer sessions and presets carry every mode's value, not only the
         # active one's; take those where present.
         for key, value in (state.modes or {}).items():
@@ -791,11 +813,17 @@ class MainWindow(QMainWindow):
         amount = self._remembered[key]
 
         if key == "surround":
-            p = SurroundPanel(amount, self._remembered["surround_lfe"])
+            p = SurroundPanel(amount, self._remembered["surround_lfe"],
+                              bool(self._remembered["surround_lfe_on"]))
             p.lfeChanged.connect(self._on_lfe_changed)
+            p.lfeToggled.connect(
+                lambda on: self._on_extra_toggled("surround_lfe", on))
             p.add_slider_row(t("reverb_3d"), 0, 100,
                              self._remembered["surround_room"] * 100, "%", 0,
-                             self._on_room_changed)
+                             self._on_room_changed,
+                             toggle=(bool(self._remembered["surround_room_on"]),
+                                     lambda on: self._on_extra_toggled(
+                                         "surround_room", on)))
         elif key == "ambience":
             p = SliderPanel(t("ambience"), t("room"), 0, 100, amount * 100,
                             "%", t("ambience_hint"), art=AmbienceArt())
@@ -818,7 +846,10 @@ class MainWindow(QMainWindow):
         if key == "surround":
             p.add_slider_row(t("clarity"), 0, 10,
                              self._remembered["surround_clarity"], " dB", 1,
-                             self._on_surround_clarity)
+                             self._on_surround_clarity,
+                             toggle=(bool(self._remembered["surround_clarity_on"]),
+                                     lambda on: self._on_extra_toggled(
+                                         "surround_clarity", on)))
         p.valueChanged.connect(lambda v, k=key: self._on_amount_changed(k, v))
         self._panel = p
         self.detail_layout.addWidget(p)
@@ -843,21 +874,22 @@ class MainWindow(QMainWindow):
     def _on_surround_clarity(self, value: float):
         self._remembered["surround_clarity"] = value
         if self.state.active == "surround":
-            self.engine.set_fidelity(value, self.state)
+            self.engine.set_fidelity(self._effective("surround_clarity"),
+                                     self.state)
 
     def _on_room_changed(self, percent: float):
-        value = percent / 100.0
-        self._remembered["surround_room"] = value
-        self.engine.set_room(value, self.state)
+        self._remembered["surround_room"] = percent / 100.0
+        room = self._effective("surround_room")
+        self.engine.set_room(room, self.state)
         if self.state.active == "surround":
             self.engine.set_ambience(
-                engine_mod.SURROUND_REVERB * self._remembered["surround"] * value,
+                engine_mod.SURROUND_REVERB * self._remembered["surround"] * room,
                 self.state)
 
     def _on_lfe_changed(self, value: float):
         self._remembered["surround_lfe"] = value
         if self.state.active == "surround":
-            self.engine.set_lfe(value, self.state)
+            self.engine.set_lfe(self._effective("surround_lfe"), self.state)
 
     def _close_panel_widget(self):
         while self.detail_layout.count():
