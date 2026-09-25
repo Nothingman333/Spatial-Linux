@@ -168,15 +168,3 @@ measurements by **Bill Gardner and Keith Martin**, MIT Media Lab, 1994
 provided free of restrictions on use, provided the authors are credited.
 The file built from it, `spatiallinux/data/binaural_ir.wav`, is made with
 [`tools/build_ir.py`](tools/build_ir.py).
-
-## Making a release
-
-1. Raise `__version__` in `spatiallinux/__init__.py`.
-2. Add a `## v<version>` section to `CHANGELOG.md`.
-3. Run **Actions → Release → Run workflow** on GitHub, or push a
-   `v<version>` tag.
-
-The [release workflow](.github/workflows/release.yml) checks the version,
-builds the `.tar.gz`, `.zip` and `SHA256SUMS`, publishes the release with
-the notes from the changelog, and removes the older releases.
-

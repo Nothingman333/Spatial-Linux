@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.5.6
+
+- The maintainer's release notes moved out of the README into
+  `docs/RELEASING.md`. No changes to the app.
+
 ## v1.5.5
 
 - README: says plainly that Spatial Linux is a Boom 3D alternative for
