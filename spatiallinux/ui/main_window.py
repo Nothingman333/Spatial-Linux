@@ -277,7 +277,9 @@ class MainWindow(QMainWindow):
                 "fidelity": 5.0, "bass": 6.0, "night": 0.5,
                 # the extra controls inside the 3D and Ambience panels
                 "surround_lfe": 5.0, "surround_treble": 0.0,
-                "surround_room": 1.0, "ambience_treble": -2.0}
+                "surround_room": 1.0, "ambience_treble": -2.0,
+                # Fidelity's clarity lift, offered inside 3D as well
+                "surround_clarity": 0.0}
 
     # the mode a first launch (and the Defaults button) comes up in
     DEFAULT_ACTIVE = "surround"
@@ -595,6 +597,10 @@ class MainWindow(QMainWindow):
                 engine_mod.SURROUND_REVERB * self._remembered["surround"]
                 * self._remembered["surround_room"],
                 self.state)
+            # 3D's own Clarity slider drives the same shelves as Fidelity;
+            # the loop above has just zeroed them for the inactive mode
+            self.engine.set_fidelity(self._remembered["surround_clarity"],
+                                     self.state)
         self.engine.set_room(self._remembered["surround_room"], self.state)
         self.engine.set_treble(
             self._remembered[f"{active}_treble"]
@@ -627,7 +633,12 @@ class MainWindow(QMainWindow):
             # room trace, not a level the user chose for Ambience
             "ambience": (0.0 if state.active == "surround" else state.ambience)
                         or self.DEFAULTS["ambience"],
-            "fidelity": state.fidelity or self.DEFAULTS["fidelity"],
+            # while 3D is engaged, `fidelity` holds 3D's Clarity, not a
+            # level chosen in the Fidelity mode
+            "fidelity": (0.0 if state.active == "surround" else state.fidelity)
+                        or self.DEFAULTS["fidelity"],
+            "surround_clarity": (state.fidelity if state.active == "surround"
+                                 else self.DEFAULTS["surround_clarity"]),
             "bass": state.bass or self.DEFAULTS["bass"],
             "night": state.night or self.DEFAULTS["night"],
             # the 3D-only controls mean something only in a state saved
@@ -788,6 +799,10 @@ class MainWindow(QMainWindow):
                              self._remembered[f"{key}_treble"], " dB", 1,
                              lambda v, k=key: self._on_treble_changed(k, v),
                              signed=True)
+        if key == "surround":
+            p.add_slider_row(t("clarity"), 0, 10,
+                             self._remembered["surround_clarity"], " dB", 1,
+                             self._on_surround_clarity)
         p.valueChanged.connect(lambda v, k=key: self._on_amount_changed(k, v))
         self._panel = p
         self.detail_layout.addWidget(p)
@@ -808,6 +823,11 @@ class MainWindow(QMainWindow):
         self._remembered[f"{key}_treble"] = value
         if self.state.active == key:
             self.engine.set_treble(value, self.state)
+
+    def _on_surround_clarity(self, value: float):
+        self._remembered["surround_clarity"] = value
+        if self.state.active == "surround":
+            self.engine.set_fidelity(value, self.state)
 
     def _on_room_changed(self, percent: float):
         value = percent / 100.0

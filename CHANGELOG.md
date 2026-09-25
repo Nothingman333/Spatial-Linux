@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.6.0-beta.2
+
+- **Clarity in 3D Surround.** The 3D panel has a Clarity slider, the same
+  lift of the deepest lows and finest highs as the Fidelity mode, with its
+  own remembered value. It starts at 0 dB, so the 3D sound does not change
+  until you raise it; the Fidelity mode keeps its own setting.
+
 ## v1.6.0-beta.1
 
 A test release. It fixes problems found by going through the whole app.

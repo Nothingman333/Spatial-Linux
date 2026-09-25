@@ -27,7 +27,7 @@ what kind of app this is.</sub>
 
 | | What it does |
 |---|---|
-| **3D Surround** | Moves the sound out of your headphones and into the room: virtual front and rear speakers rendered with a head model measured on a real head (MIT KEMAR). Sliders for intensity, **Subwoofer**, **Reverb** (how much room and rear speakers) and **Treble**. |
+| **3D Surround** | Moves the sound out of your headphones and into the room: virtual front and rear speakers rendered with a head model measured on a real head (MIT KEMAR). Sliders for intensity, **Subwoofer**, **Reverb** (how much room and rear speakers), **Treble** and **Clarity**. |
 | **Ambience** | Convolution reverb that builds a room around the music, with its own **Treble** control. |
 | **Fidelity** | Lifts the deepest lows and the finest highs, the ranges the ear hears least. |
 | **Bass Boost** | A clean low shelf below 110 Hz. |
