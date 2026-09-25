@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="spatiallinux/data/spatiallinux.svg" width="128" alt="Spatial Linux logo">
+</p>
+
 # Spatial Linux — a Boom 3D alternative for Linux
 
 ![Spatial Linux, a free Boom 3D alternative for Linux: 3D surround, ambience, bass boost, night mode and equaliser](docs/screenshot.jpg)
@@ -171,6 +175,13 @@ Spatial Linux is free and always will be. If you enjoy it and want to say
 thanks, you can buy me a coffee:
 
 [![Buy me a coffee on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/W7W2DP17Q)
+
+## License
+
+Spatial Linux is free software, released under the
+[GNU General Public License v3.0 or later](LICENSE). You can use, study,
+share and change it; if you share a changed version, it has to stay free
+under the same license.
 
 ## Credits
 

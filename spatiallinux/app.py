@@ -3,9 +3,10 @@ import sys
 import traceback
 
 from PyQt6.QtCore import QTimer
+from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
 
-from .ui.main_window import MainWindow
+from .ui.main_window import MainWindow, LOGO_PATH
 from .ui import theme
 from . import presets
 
@@ -13,6 +14,11 @@ from . import presets
 def main():
     app = QApplication(sys.argv)
     app.setStyleSheet(theme.STYLESHEET)
+    app.setApplicationName("Spatial Linux")
+    # ties the window to spatiallinux.desktop, so Wayland docks and task
+    # bars show the right icon and name
+    app.setDesktopFileName("spatiallinux")
+    app.setWindowIcon(QIcon(LOGO_PATH))
 
     presets.migrate_old_data()
     window = MainWindow()

@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.8.0
+
+- **New logo**: headphones with a glowing orb of sound between the ear
+  cups and a ring orbiting it. Shown beside the name in the app, as the
+  window and task-bar icon, in the application menu (run `install.sh`
+  again to update the menu entry) and on the project page.
+- **License**: Spatial Linux is now formally free software under the GNU
+  General Public License v3.0 or later (`LICENSE`).
+
 ## v1.7.1
 
 - README: per-app volume control is now described up front, in the

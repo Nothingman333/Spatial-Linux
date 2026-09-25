@@ -1,5 +1,6 @@
 import json
 import math
+import os
 from dataclasses import asdict
 
 from PyQt6.QtCore import Qt, QTimer, QVariantAnimation, QEasingCurve
@@ -13,6 +14,7 @@ from .. import engine as engine_mod
 from ..engine import SpatialEngine, EQ_BANDS
 from PyQt6.QtGui import (
     QPainter, QColor, QPen, QDesktopServices, QPainterPath, QLinearGradient,
+    QIcon,
 )
 from PyQt6.QtCore import QUrl, QRectF, QPointF
 
@@ -24,6 +26,10 @@ from .panels import SurroundPanel, SliderPanel
 from .art import BassHeadArt, LipsArt, NightBreathArt, AmbienceArt, FrameTimer
 from .intro import IntroOverlay
 from .mixer import MixerButton, MixerPanel
+
+
+LOGO_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)),
+                         "data", "spatiallinux.svg")
 
 
 class Panel(QFrame):
@@ -415,6 +421,16 @@ class MainWindow(QMainWindow):
         self.version_label = QLabel(f"v{__version__}")
         self.version_label.setObjectName("version")
         title_box.addWidget(self.version_label)
+        # the app's logo beside its name
+        logo = QLabel()
+        logo.setObjectName("logo")
+        size = 46
+        ratio = self.devicePixelRatioF() or 1.0
+        pix = QIcon(LOGO_PATH).pixmap(int(size * ratio), int(size * ratio))
+        pix.setDevicePixelRatio(ratio)
+        logo.setPixmap(pix)
+        logo.setFixedSize(size, size)
+        lay.addWidget(logo, 0, Qt.AlignmentFlag.AlignVCenter)
         lay.addLayout(title_box)
 
         self.power_btn = PowerButton()
