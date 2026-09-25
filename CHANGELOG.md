@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.10.1
+
+- README: the "Which Linux?" section now lists both ways to install,
+  the normal download and the Flatpak, and no longer says Bazzite needs a
+  container. No changes to the app.
+
 ## v1.10.0
 
 - **Flatpak.** Each release now also has `spatiallinux.flatpak`: install it

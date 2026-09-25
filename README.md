@@ -67,9 +67,18 @@ or newer**, with any desktop (KDE, GNOME, Cinnamon, XFCE, …) on Wayland or
 X11. Older PipeWire versions lack some of the built-in filters it uses, and
 systems that still run PulseAudio alone are not supported.
 
+There are two ways to install it, and both work on every system below:
+
+- **The normal download** (`spatiallinux-<version>.tar.gz`): unpack it and
+  run `./install.sh`. See [Install](#install).
+- **Flatpak** (`spatiallinux.flatpak`): one command,
+  `flatpak install --user spatiallinux.flatpak`, with nothing downloaded
+  on first start. Handy on Bazzite, Silverblue and other systems that
+  already use Flatpak. See [Or as a Flatpak](#or-as-a-flatpak).
+
 | Distribution | Works? |
 |---|---|
-| **Bazzite** (developed and used on it), Fedora Silverblue / Kinoite, other immutable systems | ✅ inside a distrobox container |
+| **Bazzite** (developed and used on it), Fedora Silverblue / Kinoite, other immutable systems | ✅ directly, no container needed, or as a Flatpak |
 | **Fedora** 40 and newer, Nobara | ✅ |
 | **Ubuntu** 24.04 and newer, and its flavours (Kubuntu, Xubuntu, …) | ✅ |
 | **Linux Mint** 22 and newer, **Pop!_OS** 24.04, **Zorin OS** 18 | ✅ |
