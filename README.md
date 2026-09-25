@@ -148,6 +148,13 @@ Technical notes, including how the 3D stage is built and why
 some features work the way they do: [docs/TECHNICAL.md](docs/TECHNICAL.md).
 Version history: [CHANGELOG.md](CHANGELOG.md).
 
+## Support
+
+Spatial Linux is free and always will be. If you enjoy it and want to say
+thanks, you can buy me a coffee:
+
+[![Buy me a coffee on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/W7W2DP17Q)
+
 ## Credits
 
 3D Surround uses the **MIT KEMAR** head-related transfer function
