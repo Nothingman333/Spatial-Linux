@@ -1,14 +1,19 @@
-# Spatial Linux
+# Spatial Linux — a Boom 3D alternative for Linux
 
-![Spatial Linux](docs/screenshot.jpg)
+![Spatial Linux, a free Boom 3D alternative for Linux: 3D surround, ambience, bass boost, night mode and equaliser](docs/screenshot.jpg)
 
-**3D sound for every app on your Linux desktop.** Spatial Linux adds a virtual
+**3D sound for every app on your Linux desktop.** Looking for Boom 3D on
+Linux? Spatial Linux is a free, open-source alternative. It adds a virtual
 output device to PipeWire and processes everything you play through it:
 3D surround for headphones, a room around the music, clarity, bass and a
 night mode, plus a 10-band equaliser. It runs entirely on PipeWire's
 built-in filters, so no extra audio plugins are needed.
 
 Free and open source · made by Sali · interface in English and Turkish
+
+<sub>Spatial Linux is an independent project and is not affiliated with or
+endorsed by Boom 3D or its makers. Boom 3D is mentioned only to describe
+what kind of app this is.</sub>
 
 > [!IMPORTANT]
 > **Spatial Linux does not touch your sound drivers.** It does not install,

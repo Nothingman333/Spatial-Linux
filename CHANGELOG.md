@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.5.5
+
+- README: says plainly that Spatial Linux is a Boom 3D alternative for
+  Linux, so people searching for that can find it, with a note that it is
+  not affiliated with Boom 3D. No changes to the app.
+
 ## v1.5.4
 
 - Support link: a Ko-fi button in the README and a Sponsor button on
