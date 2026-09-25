@@ -14,8 +14,9 @@ from .. import engine as engine_mod
 from ..engine import SpatialEngine, EQ_BANDS
 from PyQt6.QtGui import (
     QPainter, QColor, QPen, QDesktopServices, QPainterPath, QLinearGradient,
-    QIcon,
+    QIcon, QPixmap,
 )
+from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtCore import QUrl, QRectF, QPointF
 
 from . import theme
@@ -425,8 +426,16 @@ class MainWindow(QMainWindow):
         logo = QLabel()
         logo.setObjectName("logo")
         size = 46
+        # Drawn straight from the SVG at the screen's own scale. Asking
+        # QIcon for a pixmap already scaled for the screen and then scaling
+        # it again made it twice too big on HiDPI screens, and cropped.
         ratio = self.devicePixelRatioF() or 1.0
-        pix = QIcon(LOGO_PATH).pixmap(int(size * ratio), int(size * ratio))
+        pix = QPixmap(round(size * ratio), round(size * ratio))
+        pix.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pix)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        QSvgRenderer(LOGO_PATH).render(painter)
+        painter.end()
         pix.setDevicePixelRatio(ratio)
         logo.setPixmap(pix)
         logo.setFixedSize(size, size)
