@@ -34,6 +34,7 @@ what kind of app this is.</sub>
 | **Night Mode** | Softer, even sound for late hours: pulls the equaliser down and gently compresses, so quiet details rise and loud peaks come down. |
 | **Equaliser** | 10 bands from 32 Hz to 16 kHz. Drag a point, double-click to reset, switch it **On / Off** without losing the curve. |
 | **Presets** | Flat, Music, Movie, Gaming, Night, Bass, and your own. Picking one applies it instantly. The built-in names follow the interface language. |
+| **App volumes** | Each app that is playing sound gets its own volume slider and mute button, from the header's mixer button. |
 | **Pre-Amp and volume** | ±12 dB input gain, and the volume of the Spatial Linux device. |
 
 - **One mode at a time.** Picking a mode switches the previous one off

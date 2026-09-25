@@ -92,6 +92,48 @@ QPushButton#introLang {{
     padding: 4px 12px;
     font-size: 11px;
 }}
+QFrame#mixer {{
+    background: {PANEL};
+    border: 1px solid {PANEL_LIGHTER};
+    border-radius: 14px;
+}}
+QScrollArea#mixerScroll, QScrollArea#mixerScroll > QWidget > QWidget {{
+    background: transparent;
+}}
+QScrollBar:vertical {{
+    background: transparent;
+    width: 6px;
+    margin: 0;
+}}
+QScrollBar::handle:vertical {{
+    background: {PANEL_LIGHTER};
+    border-radius: 3px;
+    min-height: 24px;
+}}
+QScrollBar::handle:vertical:hover {{
+    background: {ACCENT_DIM};
+}}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+    height: 0;
+    background: transparent;
+}}
+QLabel#mixerApp {{
+    font-size: 12px;
+    font-weight: 600;
+    color: {TEXT};
+}}
+QPushButton#mute {{
+    background: {PANEL_LIGHT};
+    border-radius: 8px;
+    padding: 0;
+}}
+QPushButton#mute:checked {{
+    background: {PANEL_LIGHT};
+}}
+QPushButton#mute:hover {{
+    background: {PANEL_LIGHTER};
+}}
 QPushButton#globe {{
     background: {PANEL_LIGHT};
     border-radius: 17px;

@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.6.0-beta.3
+
+- **App volumes.** A new button in the header (three little faders, next
+  to the globe) opens a panel listing every app that is playing sound, each
+  with its own volume slider and mute button. Keep a game's voice chat
+  quiet and your browser loud without leaving Spatial Linux. The list
+  updates by itself while the panel is open, works whether Spatial Linux is
+  switched on or not, and reading it never freezes the window.
+
 ## v1.6.0-beta.2
 
 - **Clarity in 3D Surround.** The 3D panel has a Clarity slider, the same

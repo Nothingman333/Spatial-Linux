@@ -160,6 +160,21 @@ _STRINGS = {
                         "remembered for next time.",
                         "Bir preset seç ya da kendininkini kaydet. Her şey "
                         "bir sonraki sefere hatırlanır."),
+    "mixer_tip":       ("App volumes", "Uygulama sesleri"),
+    "mixer_title":     ("APP VOLUMES", "UYGULAMA SESLERİ"),
+    "mixer_empty":     ("No app is playing sound right now. Start something "
+                        "and it will appear here.",
+                        "Şu anda ses çalan bir uygulama yok. Bir şey "
+                        "başlattığında burada görünür."),
+    "mixer_hint":      ("Each app's own volume. It goes through Spatial Linux "
+                        "either way.",
+                        "Her uygulamanın kendi ses seviyesi. Ses yine Spatial "
+                        "Linux'tan geçer."),
+    "mixer_no_tools":  ("The PipeWire tool pw-dump was not found, so the app "
+                        "list cannot be read.",
+                        "PipeWire aracı pw-dump bulunamadı, uygulama listesi "
+                        "okunamıyor."),
+    "mute":            ("Mute / unmute", "Sessize al / aç"),
     "info_tip":        ("How to use", "Nasıl kullanılır"),
     "intro_ready_t":   ("You're ready", "Hazırsın"),
     "intro_ready":     ("Press the power button to switch it on. One mode "

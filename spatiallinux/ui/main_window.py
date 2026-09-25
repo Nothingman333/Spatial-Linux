@@ -23,6 +23,7 @@ from .eq_curve import EQCurve
 from .panels import SurroundPanel, SliderPanel
 from .art import BassHeadArt, LipsArt, NightBreathArt, AmbienceArt, FrameTimer
 from .intro import IntroOverlay
+from .mixer import MixerButton, MixerPanel
 
 
 class Panel(QFrame):
@@ -470,6 +471,13 @@ class MainWindow(QMainWindow):
         out_box.addWidget(self.output_label, alignment=Qt.AlignmentFlag.AlignRight)
         lay.addLayout(out_box)
 
+        # per-app volumes, in a drop-down panel
+        self.mixer_btn = MixerButton()
+        self.mixer_btn.setToolTip(t("mixer_tip"))
+        self.mixer_btn.clicked.connect(self._open_mixer)
+        lay.addWidget(self.mixer_btn, 0, Qt.AlignmentFlag.AlignVCenter)
+        self._mixer = None
+
         self.lang_btn = GlobeButton()
         self.lang_btn.setToolTip(t("language_tip"))
         self.lang_btn.clicked.connect(self._toggle_language)
@@ -688,6 +696,7 @@ class MainWindow(QMainWindow):
         self.out_head.setText(t("output"))
         self.lang_btn.setToolTip(t("language_tip"))
         self.info_btn.setToolTip(t("info_tip"))
+        self.mixer_btn.setToolTip(t("mixer_tip"))
         self.mode_note.setText(t("one_mode_note"))
         self.eq_head.setText(t("equaliser"))
         self.eq_hint.setText(t("eq_hint"))
@@ -718,6 +727,13 @@ class MainWindow(QMainWindow):
                                   or t("unknown_output"))
 
     # -- power / volume -----------------------------------------------------
+    def _open_mixer(self):
+        # rebuilt each time, so its labels follow the current language
+        if self._mixer is not None:
+            self._mixer.deleteLater()
+        self._mixer = MixerPanel(self.engine, self)
+        self._mixer.open_below(self.mixer_btn)
+
     def _schedule_flush(self):
         if not self._flush_timer.isActive():
             self._flush_timer.start()

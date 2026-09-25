@@ -274,6 +274,10 @@ class SpatialEngine:
         # flush); `defer`, when set by the interface, schedules that flush.
         self._pending: dict = {}
         self._pending_volume: float | None = None
+        # per-app stream changes for the mixer: {node id: volume %} and
+        # {node id: muted}; these work whether the engine is on or not
+        self._pending_streams: dict[int, float] = {}
+        self._pending_mutes: dict[int, bool] = {}
         self.defer = None
         self._recover_from_previous_crash()
 
@@ -729,6 +733,12 @@ context.modules = [
 
     def flush(self):
         """Send everything gathered since the last flush."""
+        for node, pct in self._pending_streams.items():
+            _run("wpctl", "set-volume", str(node), f"{pct / 100:.3f}")
+        for node, muted in self._pending_mutes.items():
+            _run("wpctl", "set-mute", str(node), "1" if muted else "0")
+        self._pending_streams.clear()
+        self._pending_mutes.clear()
         if self.sink_id is None:
             self._pending.clear()
             self._pending_volume = None
@@ -869,6 +879,21 @@ context.modules = [
         else:
             self.flush()
 
+    # -- per-app volumes (the mixer) ----------------------------------------
+    def set_stream_volume(self, node_id: int, pct: float):
+        self._pending_streams[node_id] = max(0.0, min(150.0, pct))
+        self._request_flush()
+
+    def set_stream_mute(self, node_id: int, muted: bool):
+        self._pending_mutes[node_id] = muted
+        self._request_flush()
+
+    def _request_flush(self):
+        if self.defer is not None:
+            self.defer()
+        else:
+            self.flush()
+
     def get_volume(self) -> int | None:
         if self.sink_id is None:
             return None
@@ -877,3 +902,41 @@ context.modules = [
             return int(round(float(out.split()[1].replace(",", ".")) * 100))
         except Exception:
             return None
+
+
+def parse_streams(objects: list) -> list[dict]:
+    """The apps currently playing sound, from a pw-dump listing.
+
+    Each is {id, app, media, volume, muted}, volume in percent on the same
+    scale desktop mixers and wpctl use. PipeWire stores stream volumes
+    linearly; mixers show their cube root, so that is taken here. Spatial
+    Linux's own nodes are left out."""
+    streams = []
+    for o in objects:
+        if o.get("type") != "PipeWire:Interface:Node":
+            continue
+        info = o.get("info") or {}
+        props = info.get("props") or {}
+        if props.get("media.class") != "Stream/Output/Audio":
+            continue
+        name = props.get("node.name") or ""
+        if name.startswith(SINK_NAME):
+            continue
+        volume, muted = 100.0, False
+        for p in (info.get("params") or {}).get("Props") or []:
+            vols = p.get("channelVolumes")
+            if vols:
+                linear = sum(vols) / len(vols)
+                volume = round(max(0.0, linear) ** (1.0 / 3.0) * 100.0)
+                muted = bool(p.get("mute", False))
+                break
+        streams.append({
+            "id": o.get("id"),
+            "app": (props.get("application.name") or props.get("node.description")
+                    or name or "?"),
+            "media": props.get("media.name") or "",
+            "volume": volume,
+            "muted": muted,
+        })
+    streams.sort(key=lambda s: (s["app"].lower(), s["id"]))
+    return streams
