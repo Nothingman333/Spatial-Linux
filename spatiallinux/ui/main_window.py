@@ -21,7 +21,7 @@ from . import i18n
 from .i18n import t
 from .eq_curve import EQCurve
 from .panels import SurroundPanel, SliderPanel
-from .art import BassHeadArt, LipsArt, NightBreathArt, AmbienceArt
+from .art import BassHeadArt, LipsArt, NightBreathArt, AmbienceArt, FrameTimer
 from .intro import IntroOverlay
 
 
@@ -84,9 +84,8 @@ class BylineLink(QLabel):
         self._url = url
         self._t = 0.0
         self._hover = False
-        self._timer = QTimer(self)
-        self._timer.setInterval(self.FRAME_MS)
-        self._timer.timeout.connect(self._tick)
+        self._timer = FrameTimer(self, self.FRAME_MS, self._tick)
+        self._timer.want(True)
         if url:
             self.setToolTip(url)
             self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -97,10 +96,10 @@ class BylineLink(QLabel):
 
     def showEvent(self, ev):
         super().showEvent(ev)
-        self._timer.start()
+        self._timer.shown(True)
 
     def hideEvent(self, ev):
-        self._timer.stop()
+        self._timer.shown(False)
         super().hideEvent(ev)
 
     def enterEvent(self, ev):
@@ -208,17 +207,20 @@ class PowerButton(QPushButton):
         self.setObjectName("power")
         self.setCheckable(True)
         self._phase = 0.0
-        self._timer = QTimer(self)
-        self._timer.setInterval(33)
-        self._timer.timeout.connect(self._tick)
+        self._timer = FrameTimer(self, 33, self._tick)
         self.toggled.connect(self._on_toggled)
 
     def _on_toggled(self, on: bool):
-        if on:
-            self._timer.start()
-        else:
-            self._timer.stop()
+        self._timer.want(on)
         self.update()
+
+    def showEvent(self, ev):
+        super().showEvent(ev)
+        self._timer.shown(True)
+
+    def hideEvent(self, ev):
+        self._timer.shown(False)
+        super().hideEvent(ev)
 
     def _tick(self):
         self._phase = (self._phase + 0.02) % 1.0
@@ -288,6 +290,8 @@ class MainWindow(QMainWindow):
 
     # how often the settings are checked and, if changed, written to disk
     AUTOSAVE_MS = 2000
+    # longest a control change waits before it is sent to the engine
+    FLUSH_MS = 30
 
     def __init__(self):
         super().__init__()
@@ -299,6 +303,13 @@ class MainWindow(QMainWindow):
         self.resize(880, self.BASE_HEIGHT)
 
         self.engine = SpatialEngine()
+        # control changes are gathered and sent together, at most every
+        # FLUSH_MS, instead of one external command per slider step
+        self._flush_timer = QTimer(self)
+        self._flush_timer.setSingleShot(True)
+        self._flush_timer.setInterval(self.FLUSH_MS)
+        self._flush_timer.timeout.connect(self.engine.flush)
+        self.engine.defer = self._schedule_flush
         self.settings = presets.load_settings()
         session = presets.load_session()
         if session is not None and session.language:
@@ -696,8 +707,19 @@ class MainWindow(QMainWindow):
                                   or t("unknown_output"))
 
     # -- power / volume -----------------------------------------------------
+    def _schedule_flush(self):
+        if not self._flush_timer.isActive():
+            self._flush_timer.start()
+
     def _on_power_toggled(self, checked: bool):
         if checked:
+            missing = engine_mod.missing_tools()
+            if missing:
+                self.power_btn.setChecked(False)
+                QMessageBox.critical(self, "Spatial Linux",
+                                     f"{t('tools_missing')}\n\n"
+                                     + ", ".join(missing))
+                return
             try:
                 self.engine.start(self.state)
             except Exception as e:
@@ -705,12 +727,11 @@ class MainWindow(QMainWindow):
                 QMessageBox.critical(self, "Spatial Linux", f"{t('engine_failed')}\n{e}")
                 return
             self.status_label.setText(t("status_on"))
-            vol = self.engine.get_volume()
-            if vol is not None:
-                self.volume_slider.blockSignals(True)
-                self.volume_slider.setValue(min(100, vol))
-                self.volume_slider.blockSignals(False)
-                self.volume_label.setText(str(min(100, vol)))
+            # The slider holds the volume the user chose (and it is saved
+            # with the settings); give it to the new device rather than
+            # letting the device's own level overwrite it, as it used to.
+            self.engine.set_volume(self.volume_slider.value())
+            self.engine.flush()
         else:
             self.engine.stop()
             self.status_label.setText(t("status_off"))
@@ -967,6 +988,7 @@ class MainWindow(QMainWindow):
             self._saved_snapshot = snap
 
     def closeEvent(self, ev):
+        self._flush_timer.stop()
         self._autosave.stop()
         self._save_if_changed()
         self.engine.stop()

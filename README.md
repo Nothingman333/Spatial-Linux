@@ -120,6 +120,10 @@ need to run `install.sh` again. Only if you put the new version in a
 **different** folder, run `./install.sh` from there once so the menu entry
 points to it. The version you are running is shown under the app's name.
 
+Releases marked **Pre-release** (for example `1.6.0-beta.1`) are test
+versions with the newest changes. The one marked **Latest** is the stable
+version; if you just want things to work, use that one.
+
 ## Uninstalling
 
 Close the app, delete its folder, and remove the menu entry:

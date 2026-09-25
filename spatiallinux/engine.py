@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import shutil
 import signal
 import subprocess
 import time
@@ -181,8 +182,22 @@ class EngineState:
         return vals[:len(EQ_BANDS)]
 
 
+# The command-line tools the engine drives. A missing one used to raise
+# straight out of the window's constructor, so the app did not open at all.
+REQUIRED_TOOLS = ("pipewire", "pw-cli", "pw-dump", "pw-metadata", "wpctl")
+
+
+def missing_tools() -> list[str]:
+    return [t for t in REQUIRED_TOOLS if shutil.which(t) is None]
+
+
 def _run(*args, **kw):
-    return subprocess.run(args, capture_output=True, text=True, **kw)
+    """Run a command; a missing or failing tool gives an empty result rather
+    than an exception, so one absent utility cannot take the app down."""
+    try:
+        return subprocess.run(args, capture_output=True, text=True, **kw)
+    except OSError:
+        return subprocess.CompletedProcess(args, 127, "", "")
 
 
 def _sh(cmd: list[str]) -> str:
@@ -251,6 +266,15 @@ class SpatialEngine:
         self.sink_id: int | None = None
         self._prev_default_name: str | None = None
         self._prev_default_desc: str | None = None
+        # whether that previous default was one the user picked by hand;
+        # if not, it was the session manager's own choice and the right way
+        # to give it back is to clear ours, not to pin theirs
+        self._prev_configured = False
+        # Live control changes are gathered here and sent together (see
+        # flush); `defer`, when set by the interface, schedules that flush.
+        self._pending: dict = {}
+        self._pending_volume: float | None = None
+        self.defer = None
         self._recover_from_previous_crash()
 
     # -- crash safety -----------------------------------------------------
@@ -263,9 +287,10 @@ class SpatialEngine:
 
         if os.path.exists(STATE_FILE):
             try:
-                prev = json.load(open(STATE_FILE)).get("prev_default_name")
-                if prev:
-                    self._restore_default_sink_by_name(prev)
+                with open(STATE_FILE) as f:
+                    saved = json.load(f)
+                self._give_back_default(saved.get("prev_default_name"),
+                                        saved.get("prev_configured", True))
             except Exception:
                 pass
             finally:
@@ -276,6 +301,10 @@ class SpatialEngine:
 
     # -- default sink bookkeeping ------------------------------------------
     def _current_default_sink_name(self) -> str | None:
+        return self._current_default_sink()[0]
+
+    def _current_default_sink(self) -> tuple[str | None, bool]:
+        """(name, chosen_by_hand) of the default output."""
         """The sink audio goes to by default. `default.configured.audio.sink`
         only exists once someone has picked a device by hand; on a system
         where nobody ever has, only the session manager's own choice,
@@ -291,8 +320,9 @@ class SpatialEngine:
                         found[key] = json.loads(raw).get("name")
                     except Exception:
                         pass
-        return (found.get("default.configured.audio.sink")
-                or found.get("default.audio.sink"))
+        configured = found.get("default.configured.audio.sink")
+        return (configured or found.get("default.audio.sink"),
+                configured is not None)
 
     def _find_node_id_by_name(self, name: str) -> int | None:
         for o in _pw_dump_objects():
@@ -305,6 +335,17 @@ class SpatialEngine:
         node_id = self._find_node_id_by_name(name)
         if node_id is not None:
             _run("wpctl", "set-default", str(node_id))
+
+    def _give_back_default(self, name: str | None, configured: bool):
+        """Return the default output to what it was before we took it. If
+        the user had picked it by hand, pick it again; if the session manager
+        had chosen it, clear our choice so it chooses again -- restoring it
+        by name would turn its automatic choice into a manual one, a change
+        to the user's settings that would outlive the app."""
+        if name and configured:
+            self._restore_default_sink_by_name(name)
+        else:
+            _run("wpctl", "clear-default")
 
     def _describe_sink(self, name: str | None) -> str | None:
         if not name:
@@ -589,7 +630,9 @@ context.modules = [
         if not os.path.exists(IR_PATH):
             generate_reverb_ir(IR_PATH)
 
-        prev_name = self._current_default_sink_name()
+        self._pending.clear()
+        self._pending_volume = None
+        prev_name, prev_configured = self._current_default_sink()
         if prev_name == SINK_NAME:
             # A previous run was killed before it could restore the default,
             # leaving it pointing at our own (now gone) sink. Recording that
@@ -597,10 +640,12 @@ context.modules = [
             # fall back to letting the session manager pick.
             prev_name = None
         self._prev_default_name = prev_name
+        self._prev_configured = prev_configured and prev_name is not None
         # resolve the friendly name now, while it is still the default sink
         self._prev_default_desc = self._describe_sink(prev_name)
         with open(STATE_FILE, "w") as f:
-            json.dump({"prev_default_name": prev_name}, f)
+            json.dump({"prev_default_name": prev_name,
+                       "prev_configured": self._prev_configured}, f)
 
         with open(CONF_PATH, "w") as f:
             f.write(self._build_conf(state))
@@ -627,15 +672,17 @@ context.modules = [
         _run("wpctl", "set-default", str(self.sink_id))
 
     def stop(self):
-        if self._prev_default_name:
-            self._restore_default_sink_by_name(self._prev_default_name)
-            self._prev_default_name = None
-            self._prev_default_desc = None
-        elif self.sink_id is not None:
-            # No known previous device: clear the default outright so the
-            # session manager re-picks real hardware instead of staying
-            # pinned to the sink we are about to destroy.
-            _run("wpctl", "clear-default")
+        self._pending.clear()
+        self._pending_volume = None
+        if self._prev_default_name or self.sink_id is not None:
+            # With no known previous device, clearing lets the session
+            # manager re-pick real hardware instead of staying pinned to the
+            # sink we are about to destroy.
+            self._give_back_default(self._prev_default_name,
+                                    self._prev_configured)
+        self._prev_default_name = None
+        self._prev_default_desc = None
+        self._prev_configured = False
 
         if self.proc is not None:
             try:
@@ -666,10 +713,32 @@ context.modules = [
     # message well inside the limit.
     MAX_PARAMS_PER_CALL = 16
 
+    # Every change used to be its own pw-cli process: dragging one slider
+    # started over a hundred of them, each blocking the interface for a few
+    # milliseconds. Changes are now merged (the latest value of each control
+    # wins) and sent together when the interface calls flush(), at most a few
+    # dozen times a second. Without `defer` they are sent at once.
     def _set_props(self, params: dict):
         if self.sink_id is None:
             return
-        items = list(params.items())
+        self._pending.update(params)
+        if self.defer is not None:
+            self.defer()
+        else:
+            self.flush()
+
+    def flush(self):
+        """Send everything gathered since the last flush."""
+        if self.sink_id is None:
+            self._pending.clear()
+            self._pending_volume = None
+            return
+        if self._pending_volume is not None:
+            _run("wpctl", "set-volume", str(self.sink_id),
+                 f"{self._pending_volume / 100:.3f}")
+            self._pending_volume = None
+        items = list(self._pending.items())
+        self._pending.clear()
         for start in range(0, len(items), self.MAX_PARAMS_PER_CALL):
             chunk = items[start:start + self.MAX_PARAMS_PER_CALL]
             body = " ".join(f'"{k}" {v}' for k, v in chunk)
@@ -794,8 +863,11 @@ context.modules = [
     def set_volume(self, pct: float):
         if self.sink_id is None:
             return
-        pct = max(0.0, min(150.0, pct))
-        _run("wpctl", "set-volume", str(self.sink_id), f"{pct / 100:.3f}")
+        self._pending_volume = max(0.0, min(150.0, pct))
+        if self.defer is not None:
+            self.defer()
+        else:
+            self.flush()
 
     def get_volume(self) -> int | None:
         if self.sink_id is None:

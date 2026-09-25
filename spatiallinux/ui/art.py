@@ -9,6 +9,7 @@ so an idle window costs nothing.
 import math
 
 from PyQt6.QtCore import Qt, QRectF, QTimer
+from PyQt6.QtGui import QGuiApplication
 from PyQt6.QtGui import (
     QPainter, QColor, QPen, QPainterPath, QRadialGradient, QLinearGradient,
     QFont,
@@ -133,6 +134,44 @@ def _luminous_body(p: QPainter, path: QPainterPath, rect: QRectF,
     _glow_path(p, path, _accent(int(150 * strength) + 50, True), 1.3, 2)
 
 
+class FrameTimer(QTimer):
+    """Drives an animation, but only while it can be seen: its widget is
+    shown and Spatial Linux is the active application. Rendering these
+    scenes costs around 15% of a CPU core, and a sound app mostly sits in
+    the background -- behind a game, say -- where that was pure waste. It
+    picks up again as soon as the window is back in front.
+
+    Owners call want(True/False) for whether they have anything to animate,
+    and shown(True/False) from their show and hide events."""
+
+    def __init__(self, owner, interval_ms: int, slot):
+        super().__init__(owner)
+        self.setInterval(interval_ms)
+        self.timeout.connect(slot)
+        self._wanted = False
+        self._visible = False
+        app = QGuiApplication.instance()
+        if app is not None:
+            app.applicationStateChanged.connect(self._sync)
+
+    def want(self, on: bool):
+        self._wanted = on
+        self._sync()
+
+    def shown(self, on: bool):
+        self._visible = on
+        self._sync()
+
+    def _sync(self, *_):
+        active = (QGuiApplication.applicationState()
+                  == Qt.ApplicationState.ApplicationActive)
+        run = self._wanted and self._visible and active
+        if run and not self.isActive():
+            self.start()
+        elif not run and self.isActive():
+            self.stop()
+
+
 class AnimatedArt(QWidget):
     """Base: a phase that advances while visible, and an eased `amount`."""
 
@@ -144,21 +183,19 @@ class AnimatedArt(QWidget):
         self._amount = 0.0
         self._shown = 0.0
         self.setMinimumHeight(150)
-        self._timer = QTimer(self)
-        self._timer.setInterval(getattr(self, "FRAME_MS", FRAME_MS))
-        self._timer.timeout.connect(self._tick)
+        self._timer = FrameTimer(self, getattr(self, "FRAME_MS", FRAME_MS),
+                                 self._tick)
+        self._timer.want(True)
 
     def setAmount(self, amount: float):
         self._amount = max(0.0, min(1.0, amount))
-        if self.isVisible() and not self._timer.isActive():
-            self._timer.start()
         self.update()
 
     def showEvent(self, ev):
-        self._timer.start()
+        self._timer.shown(True)
 
     def hideEvent(self, ev):
-        self._timer.stop()
+        self._timer.shown(False)
 
     def _tick(self):
         step = getattr(self, "FRAME_MS", FRAME_MS) / 1000.0

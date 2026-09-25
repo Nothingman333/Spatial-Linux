@@ -91,21 +91,34 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$TAG" dist/* \
+          # a version with a suffix (1.6.0-beta.1) is a pre-release: it is
+          # offered to testers but never marked Latest
+          pre=""
+          case "$TAG" in *-*) pre="--prerelease" ;; esac
+          gh release create "$TAG" dist/* $pre \
             --target "$GITHUB_SHA" \
             --title "Spatial Linux $TAG" \
             --notes-file notes.md
 
       # Only the newest release is kept on the Releases page; the older ones
-      # and their tags go. The full history stays in the commits and in
-      # CHANGELOG.md.
+      # and their tags go. A beta keeps the newest stable release beside it,
+      # so everyone else still has a stable download. The full history stays
+      # in CHANGELOG.md.
       - name: Remove older releases
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          keep_stable=""
+          case "$TAG" in *-*)
+            keep_stable="$(gh release list --limit 200 \
+              --json tagName,isPrerelease,publishedAt \
+              --jq '[.[] | select(.isPrerelease | not)]
+                    | sort_by(.publishedAt) | last | .tagName // ""')" ;;
+          esac
+          echo "Keeping $TAG ${keep_stable:+and $keep_stable}"
           gh release list --limit 200 --json tagName --jq '.[].tagName' |
           while read -r old; do
-            if [ -n "$old" ] && [ "$old" != "$TAG" ]; then
+            if [ -n "$old" ] && [ "$old" != "$TAG" ] && [ "$old" != "$keep_stable" ]; then
               echo "Removing $old"
               gh release delete "$old" --yes --cleanup-tag
             fi

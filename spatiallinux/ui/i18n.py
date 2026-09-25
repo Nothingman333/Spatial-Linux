@@ -42,6 +42,12 @@ _STRINGS = {
                         "Etkin — ses Spatial Linux üzerinden geçiyor"),
     "engine_failed":   ("Could not start the engine:",
                         "Motor başlatılamadı:"),
+    "tools_missing":   ("Spatial Linux needs these PipeWire tools, which were not "
+                        "found on this system. Install PipeWire and WirePlumber "
+                        "(and their command-line tools) and try again:",
+                        "Spatial Linux'un ihtiyaç duyduğu şu PipeWire araçları "
+                        "bu sistemde bulunamadı. PipeWire ve WirePlumber'ı "
+                        "(komut satırı araçlarıyla birlikte) kurup tekrar dene:"),
     "preset_failed":   ("Could not load the preset:",
                         "Preset yüklenemedi:"),
     "save_preset":     ("Save preset", "Preset Kaydet"),

@@ -1,5 +1,32 @@
 # Changelog
 
+## v1.6.0-beta.1
+
+A test release. It fixes problems found by going through the whole app.
+
+- **No more stutter while dragging sliders.** Every slider step used to
+  start its own background command: one drag of a slider ran over a
+  hundred of them, the volume slider a hundred, one EQ point fifty, each
+  briefly freezing the window. Changes are now gathered and sent together,
+  at most every 30 ms: one command per drag, and switching modes or
+  loading a preset takes four instead of nine to fourteen.
+- **Much less CPU in the background.** An open mode panel's animation
+  used about 15% of a CPU core all the time, even behind a game. All
+  animations now pause while Spatial Linux is not the active window or is
+  minimised, and continue when you come back.
+- **Your volume is kept.** Switching on used to replace the saved volume
+  with the virtual device's own level.
+- **Truly leaves no trace.** On systems where the output device had never
+  been picked by hand, switching off saved the previous device as a manual
+  choice in the system settings. Now the automatic choice is simply given
+  back.
+- **Opens even if a tool is missing.** If one of the PipeWire command-line
+  tools (or `pgrep`) was missing, the app did not open at all, without any
+  message. It now opens, and the power button explains what to install.
+- **Clearer start-up problems.** Started from the menu without PyQt6, the
+  app failed silently; it now shows a notification saying what to
+  install. It also no longer forces XWayland when there is none.
+
 ## v1.5.6
 
 - The maintainer's release notes moved out of the README into
