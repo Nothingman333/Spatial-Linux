@@ -274,13 +274,13 @@ class MainWindow(QMainWindow):
 
     # Where a feature's slider starts the first time it is selected, so that
     # picking a mode is immediately audible instead of a no-op at zero.
-    DEFAULTS = {"surround": 0.5, "ambience": 0.05,
+    DEFAULTS = {"surround": 0.65, "ambience": 0.05,
                 "fidelity": 5.0, "bass": 6.0, "night": 0.5,
                 # the extra controls inside the 3D and Ambience panels
-                "surround_lfe": 5.0, "surround_treble": 0.0,
-                "surround_room": 1.0, "ambience_treble": -2.0,
+                "surround_lfe": 3.0, "surround_treble": -1.0,
+                "surround_room": 0.25, "ambience_treble": -2.0,
                 # Fidelity's clarity lift, offered inside 3D as well
-                "surround_clarity": 0.0}
+                "surround_clarity": 5.0}
 
     # the mode a first launch (and the Defaults button) comes up in
     DEFAULT_ACTIVE = "surround"

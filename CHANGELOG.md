@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.6.0
+
+Everything from the three betas, now stable:
+
+- **App volumes**: a panel with a volume slider and mute button for every
+  app playing sound, from the new mixer button in the header.
+- **Clarity in 3D Surround**, with its own value, separate from Fidelity.
+- **No more stutter while dragging sliders**: changes are sent together,
+  one command per drag instead of over a hundred.
+- **Much less CPU in the background**: animations pause while Spatial Linux
+  is not the active window.
+- Your saved volume is kept when switching on; switching off gives an
+  automatic default output back exactly as it was; the app opens even when
+  a tool is missing and says what to install.
+- **New 3D defaults** (first launch and the Defaults button): intensity 65%,
+  Subwoofer +3 dB, Reverb 25%, Treble −1 dB, Clarity +5 dB. Your own saved
+  settings are not changed.
+
 ## v1.6.0-beta.3
 
 - **App volumes.** A new button in the header (three little faders, next
