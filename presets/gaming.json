@@ -1,0 +1,23 @@
+{
+  "eq": [
+    2.0,
+    1.0,
+    0.0,
+    0.0,
+    1.0,
+    2.0,
+    3.0,
+    3.0,
+    2.0,
+    1.0
+  ],
+  "bass": 5.0,
+  "fidelity": 5.0,
+  "surround": 0.85,
+  "ambience": 0.2,
+  "night": 0.3,
+  "active": "surround",
+  "preamp": 0.0,
+  "limiter": true,
+  "lfe": 5.0
+}

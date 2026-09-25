@@ -1,0 +1,128 @@
+# Publishes a GitHub release, started either way:
+#
+#   * push a version tag:   git tag v1.0.1 && git push origin v1.0.1
+#   * or, with no tag, Actions -> Release -> "Run workflow": it releases the
+#     version in spatiallinux/__init__.py and creates the tag itself.
+#
+# The release carries a .tar.gz and a .zip of the app, a checksum file, and
+# the notes for that version taken from CHANGELOG.md.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write      # to clear out the runs of older commits (last step)
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Work out the version, and check it against the app
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          app="$(python3 -c 'import spatiallinux; print(spatiallinux.__version__)')"
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            tag="$GITHUB_REF_NAME"
+            if [ "$tag" != "v$app" ]; then
+              echo "::error::Tag $tag does not match spatiallinux/__init__.py ($app)"
+              exit 1
+            fi
+          else
+            tag="v$app"
+            if gh release view "$tag" >/dev/null 2>&1; then
+              echo "::error::$tag is already released -- raise __version__ first"
+              exit 1
+            fi
+          fi
+          echo "TAG=$tag" >> "$GITHUB_ENV"
+
+      - name: Build the downloads
+        run: |
+          name="spatiallinux-${TAG#v}"
+          mkdir dist
+          git archive --format=tar.gz --prefix="$name/" -o "dist/$name.tar.gz" HEAD
+          git archive --format=zip    --prefix="$name/" -o "dist/$name.zip"    HEAD
+          (cd dist && sha256sum * > SHA256SUMS)
+
+      - name: Pull this version's notes out of CHANGELOG.md
+        run: |
+          awk -v v="## ${TAG}" '
+            $0 == v { on = 1; next }
+            on && /^## / { exit }
+            on { print }
+          ' CHANGELOG.md > notes.md
+          cat >> notes.md <<'NOTES'
+
+          ## Install
+
+          ```bash
+          # Needs PipeWire 1.0 or newer (Ubuntu 24.04+, Fedora 40+,
+          # Debian 13+, Arch, Bazzite...). Details in the README.
+          sudo apt-get install -y python3-pyqt6   # the only dependency
+          tar xf spatiallinux-*.tar.gz
+          cd spatiallinux-*/
+          ./install.sh                            # adds it to the app menu
+          ```
+
+          Or run it without installing: `./spatiallinux.sh`
+
+          ## Updating
+
+          Download the zip, copy its files over your existing Spatial Linux
+          folder and start the app. Your settings and presets are kept.
+
+          `SHA256SUMS` is optional: it lets you check that a download is
+          complete and unmodified, with
+          `sha256sum -c SHA256SUMS --ignore-missing`.
+
+          Spatial Linux does not touch your sound drivers: it changes no
+          driver or system file and never needs root. Switch it off and
+          the sound goes back to your original device, exactly as it was.
+          NOTES
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$TAG" dist/* \
+            --target "$GITHUB_SHA" \
+            --title "Spatial Linux $TAG" \
+            --notes-file notes.md
+
+      # Only the newest release is kept on the Releases page; the older ones
+      # and their tags go. The full history stays in the commits and in
+      # CHANGELOG.md.
+      - name: Remove older releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release list --limit 200 --json tagName --jq '.[].tagName' |
+          while read -r old; do
+            if [ -n "$old" ] && [ "$old" != "$TAG" ]; then
+              echo "Removing $old"
+              gh release delete "$old" --yes --cleanup-tag
+            fi
+          done
+
+      # Workflow runs of commits that are no longer in the repository still
+      # link to them (and so to their author details). Clear them out; runs
+      # of the current commit, this one included, are kept.
+      - name: Remove runs of older commits
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run list --limit 500 --json databaseId,headSha \
+            --jq '.[] | "\(.databaseId) \(.headSha)"' |
+          while read -r id sha; do
+            if [ -n "$id" ] && [ "$sha" != "$GITHUB_SHA" ]; then
+              echo "Removing run $id ($sha)"
+              gh run delete "$id" || true
+            fi
+          done

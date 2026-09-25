@@ -1,0 +1,3 @@
+# Kept out of the release downloads; they are only for the repository.
+.github        export-ignore
+.gitattributes export-ignore

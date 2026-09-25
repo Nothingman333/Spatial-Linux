@@ -1,0 +1,5 @@
+__pycache__/
+*.py[cod]
+
+# Written by install.sh with this machine's path in it
+/spatiallinux.desktop
