@@ -1040,8 +1040,12 @@ class MainWindow(QMainWindow):
 
     # -- lifecycle ------------------------------------------------------------
     # -- startup / persistence -------------------------------------------------
+    # The Flatpak shares its settings with the normal version, so it keeps
+    # its own "seen" flag: installing it still plays the intro once.
+    INTRO_KEY = "intro_seen_flatpak" if engine_mod.IN_FLATPAK else "intro_seen"
+
     def _after_show(self):
-        if not self.settings.get("intro_seen"):
+        if not self.settings.get(self.INTRO_KEY):
             self._show_intro(first_run=True)
         else:
             self._after_intro()
@@ -1060,8 +1064,8 @@ class MainWindow(QMainWindow):
 
     def _after_intro(self):
         self._intro = None
-        if not self.settings.get("intro_seen"):
-            self.settings["intro_seen"] = True
+        if not self.settings.get(self.INTRO_KEY):
+            self.settings[self.INTRO_KEY] = True
             self._save_if_changed()
         if self.settings.get("power") and not self.power_btn.isChecked():
             self.power_btn.click()

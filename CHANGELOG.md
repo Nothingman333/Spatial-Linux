@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.10.3
+
+- Fix: the Flatpak did not play the introduction on its first start if
+  the normal version had been used before, because the two share their
+  settings. The Flatpak now remembers the introduction on its own.
+
 ## v1.10.2
 
 - README: the "Which Linux?" table now has a column each for the normal
