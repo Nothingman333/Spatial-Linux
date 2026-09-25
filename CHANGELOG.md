@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.10.2
+
+- README: the "Which Linux?" table now has a column each for the normal
+  download and the Flatpak, instead of a separate list above it. No
+  changes to the app.
+
 ## v1.10.1
 
 - README: the "Which Linux?" section now lists both ways to install,

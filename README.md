@@ -67,25 +67,16 @@ or newer**, with any desktop (KDE, GNOME, Cinnamon, XFCE, …) on Wayland or
 X11. Older PipeWire versions lack some of the built-in filters it uses, and
 systems that still run PulseAudio alone are not supported.
 
-There are two ways to install it, and both work on every system below:
-
-- **The normal download** (`spatiallinux-<version>.tar.gz`): unpack it and
-  run `./install.sh`. See [Install](#install).
-- **Flatpak** (`spatiallinux.flatpak`): one command,
-  `flatpak install --user spatiallinux.flatpak`, with nothing downloaded
-  on first start. Handy on Bazzite, Silverblue and other systems that
-  already use Flatpak. See [Or as a Flatpak](#or-as-a-flatpak).
-
-| Distribution | Works? |
-|---|---|
-| **Bazzite** (developed and used on it), Fedora Silverblue / Kinoite, other immutable systems | ✅ directly, no container needed, or as a Flatpak |
-| **Fedora** 40 and newer, Nobara | ✅ |
-| **Ubuntu** 24.04 and newer, and its flavours (Kubuntu, Xubuntu, …) | ✅ |
-| **Linux Mint** 22 and newer, **Pop!_OS** 24.04, **Zorin OS** 18 | ✅ |
-| **Debian** 13 (trixie) and newer | ✅ |
-| **Arch**, **Manjaro**, **EndeavourOS**, **CachyOS** | ✅ with `pipewire`, `pipewire-pulse` and `wireplumber` installed |
-| **openSUSE Tumbleweed** | ✅ |
-| Ubuntu 22.04, Linux Mint 21, Debian 12 and older | ❌ PipeWire too old, or not used by default |
+| Distribution | Normal download | Flatpak |
+|---|---|---|
+| **Bazzite** (developed and used on it), Fedora Silverblue / Kinoite, other immutable systems | ✅ | ✅ |
+| **Fedora** 40 and newer, Nobara | ✅ | ✅ |
+| **Ubuntu** 24.04 and newer, and its flavours (Kubuntu, Xubuntu, …) | ✅ | ✅ after `sudo apt install flatpak` |
+| **Linux Mint** 22 and newer, **Pop!_OS** 24.04, **Zorin OS** 18 | ✅ | ✅ |
+| **Debian** 13 (trixie) and newer | ✅ | ✅ after `sudo apt install flatpak` |
+| **Arch**, **Manjaro**, **EndeavourOS**, **CachyOS** | ✅ with `pipewire`, `pipewire-pulse` and `wireplumber` installed | ✅ same, plus `flatpak` |
+| **openSUSE Tumbleweed** | ✅ | ✅ |
+| Ubuntu 22.04, Linux Mint 21, Debian 12 and older | ❌ PipeWire too old, or not used by default | ❌ |
 
 Bazzite is where it was built and tested; the other systems meet the same
 requirements but have not been tried one by one. To check yours:
