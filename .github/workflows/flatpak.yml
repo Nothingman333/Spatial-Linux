@@ -24,11 +24,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Stamp the version into the store metadata
-        run: |
-          ver="$(python3 -c 'import spatiallinux; print(spatiallinux.__version__)')"
-          sed -i "s|<release version=\\"[^\\"]*\\" date=\\"[^\\"]*\\"/>|<release version=\\"$ver\\" date=\\"$(date +%F)\\"/>|" \
-            flatpak/io.github.nothingman333.SpatialLinux.metainfo.xml
-          grep '<release ' flatpak/io.github.nothingman333.SpatialLinux.metainfo.xml
+        run: sh flatpak/stamp-version.sh
 
       - uses: flathub-infra/flatpak-github-actions/flatpak-builder@master
         with:
