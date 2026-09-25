@@ -80,6 +80,12 @@ jobs:
 
           Or run it without installing: `./spatiallinux.sh`
 
+          ## Flatpak
+
+          `spatiallinux.flatpak` is added to this page a few minutes after
+          the rest, once it is built. Install it with
+          `flatpak install --user spatiallinux.flatpak`.
+
           ## Updating
 
           Download the zip, copy its files over your existing Spatial Linux
