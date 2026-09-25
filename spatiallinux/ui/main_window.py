@@ -796,6 +796,10 @@ class MainWindow(QMainWindow):
                 return
             try:
                 self.engine.start(self.state)
+            except engine_mod.AlreadyRunning:
+                self.power_btn.setChecked(False)
+                QMessageBox.warning(self, "Spatial Linux", t("already_running"))
+                return
             except Exception as e:
                 self.power_btn.setChecked(False)
                 QMessageBox.critical(self, "Spatial Linux", f"{t('engine_failed')}\n{e}")

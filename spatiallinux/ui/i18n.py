@@ -40,6 +40,12 @@ _STRINGS = {
                         "Kapalı — ses orijinal aygıtta"),
     "status_on":       ("Active — audio running through Spatial Linux",
                         "Etkin — ses Spatial Linux üzerinden geçiyor"),
+    "already_running": ("Spatial Linux is already switched on in another window "
+                        "(the normal version or the Flatpak). Switch that one "
+                        "off first, so the sound is not processed twice.",
+                        "Spatial Linux başka bir pencerede zaten açık (normal "
+                        "sürüm ya da Flatpak). Ses iki kez işlenmesin diye "
+                        "önce onu kapatın."),
     "engine_failed":   ("Could not start the engine:",
                         "Motor başlatılamadı:"),
     "tools_missing":   ("Spatial Linux needs these PipeWire tools, which were not "

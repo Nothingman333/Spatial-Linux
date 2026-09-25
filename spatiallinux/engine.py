@@ -21,6 +21,7 @@ import os
 import shutil
 import signal
 import subprocess
+import threading
 import time
 from dataclasses import dataclass, field
 
@@ -218,6 +219,10 @@ def missing_tools() -> list[str]:
     return [t for t in out.stdout.split() if t]
 
 
+class AlreadyRunning(RuntimeError):
+    """Another Spatial Linux is already switched on."""
+
+
 def _run(*args, **kw):
     """Run a command; a missing or failing tool gives an empty result rather
     than an exception, so one absent utility cannot take the app down."""
@@ -307,6 +312,12 @@ class SpatialEngine:
         self._pending_streams: dict[int, float] = {}
         self._pending_mutes: dict[int, bool] = {}
         self.defer = None
+        # flush() hands the sending to a background thread: every command is
+        # a new process, and in the Flatpak one that goes through
+        # flatpak-spawn, slow enough to stall the window if run from it.
+        self._lock = threading.Lock()
+        self._wake = threading.Event()
+        self._sender: threading.Thread | None = None
         self._recover_from_previous_crash()
 
     # -- crash safety -----------------------------------------------------
@@ -645,6 +656,9 @@ context.spa-libs = {{
     support.*       = support/libspa-support
 }}
 context.modules = [
+    {{ name = libpipewire-module-rt
+        args = {{ nice.level = -11 rt.prio = 88 }}
+        flags = [ ifexists nofail ] }}
     {{ name = libpipewire-module-protocol-native }}
     {{ name = libpipewire-module-client-node }}
     {{ name = libpipewire-module-adapter }}
@@ -663,11 +677,16 @@ context.modules = [
         if self.running:
             self.stop()
 
+        if self._find_node_id_by_name(SINK_NAME) is not None:
+            # another copy (the normal version and the Flatpak side by side)
+            # already has its device up; a second one would be routed into
+            # the first and process every sound twice
+            raise AlreadyRunning()
+
         if not os.path.exists(IR_PATH):
             generate_reverb_ir(IR_PATH)
 
-        self._pending.clear()
-        self._pending_volume = None
+        self._drop_pending()
         prev_name, prev_configured = self._current_default_sink()
         if prev_name == SINK_NAME:
             # A previous run was killed before it could restore the default,
@@ -710,8 +729,7 @@ context.modules = [
         _run("wpctl", "set-default", str(self.sink_id))
 
     def stop(self):
-        self._pending.clear()
-        self._pending_volume = None
+        self._drop_pending()
         if self._prev_default_name or self.sink_id is not None:
             # With no known previous device, clearing lets the session
             # manager re-pick real hardware instead of staying pinned to the
@@ -759,34 +777,58 @@ context.modules = [
     def _set_props(self, params: dict):
         if self.sink_id is None:
             return
-        self._pending.update(params)
+        with self._lock:
+            self._pending.update(params)
         if self.defer is not None:
             self.defer()
         else:
             self.flush()
 
-    def flush(self):
-        """Send everything gathered since the last flush."""
-        for node, pct in self._pending_streams.items():
-            _run("wpctl", "set-volume", str(node), f"{pct / 100:.3f}")
-        for node, muted in self._pending_mutes.items():
-            _run("wpctl", "set-mute", str(node), "1" if muted else "0")
-        self._pending_streams.clear()
-        self._pending_mutes.clear()
-        if self.sink_id is None:
+    def _drop_pending(self):
+        with self._lock:
             self._pending.clear()
             self._pending_volume = None
+
+    def flush(self):
+        """Send everything gathered since the last flush, in the background.
+        Changes made while a send is running are merged and go out in the
+        next one, so a slow send never builds up a queue."""
+        if self._sender is None:
+            self._sender = threading.Thread(target=self._send_loop,
+                                            name="spatiallinux-sender",
+                                            daemon=True)
+            self._sender.start()
+        self._wake.set()
+
+    def _send_loop(self):
+        while True:
+            self._wake.wait()
+            self._wake.clear()
+            try:
+                self._send_pending()
+            except Exception:
+                pass                         # never let the sender die
+
+    def _send_pending(self):
+        with self._lock:
+            streams, self._pending_streams = self._pending_streams, {}
+            mutes, self._pending_mutes = self._pending_mutes, {}
+            sink = self.sink_id
+            volume, self._pending_volume = self._pending_volume, None
+            items = list(self._pending.items())
+            self._pending.clear()
+        for node, pct in streams.items():
+            _run("wpctl", "set-volume", str(node), f"{pct / 100:.3f}")
+        for node, muted in mutes.items():
+            _run("wpctl", "set-mute", str(node), "1" if muted else "0")
+        if sink is None:
             return
-        if self._pending_volume is not None:
-            _run("wpctl", "set-volume", str(self.sink_id),
-                 f"{self._pending_volume / 100:.3f}")
-            self._pending_volume = None
-        items = list(self._pending.items())
-        self._pending.clear()
+        if volume is not None:
+            _run("wpctl", "set-volume", str(sink), f"{volume / 100:.3f}")
         for start in range(0, len(items), self.MAX_PARAMS_PER_CALL):
             chunk = items[start:start + self.MAX_PARAMS_PER_CALL]
             body = " ".join(f'"{k}" {v}' for k, v in chunk)
-            _run("pw-cli", "set-param", str(self.sink_id), "Props",
+            _run("pw-cli", "set-param", str(sink), "Props",
                  "{ params = [ " + body + " ] }")
 
     def set_preamp(self, db: float, state: EngineState | None = None):
@@ -907,7 +949,8 @@ context.modules = [
     def set_volume(self, pct: float):
         if self.sink_id is None:
             return
-        self._pending_volume = max(0.0, min(150.0, pct))
+        with self._lock:
+            self._pending_volume = max(0.0, min(150.0, pct))
         if self.defer is not None:
             self.defer()
         else:
@@ -915,11 +958,13 @@ context.modules = [
 
     # -- per-app volumes (the mixer) ----------------------------------------
     def set_stream_volume(self, node_id: int, pct: float):
-        self._pending_streams[node_id] = max(0.0, min(150.0, pct))
+        with self._lock:
+            self._pending_streams[node_id] = max(0.0, min(150.0, pct))
         self._request_flush()
 
     def set_stream_mute(self, node_id: int, muted: bool):
-        self._pending_mutes[node_id] = muted
+        with self._lock:
+            self._pending_mutes[node_id] = muted
         self._request_flush()
 
     def _request_flush(self):

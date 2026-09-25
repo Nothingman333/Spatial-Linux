@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.10.4
+
+- **Steadier sound under load**: the audio processing now asks for
+  real-time priority, as PipeWire's own services do, so a busy system
+  (a game, a compile) is less likely to cause crackles or dropouts.
+- **Never processed twice**: switching on while another Spatial Linux (the
+  normal version and the Flatpak side by side) is already on used to route
+  one into the other, applying every effect twice. It now says so instead.
+- Commands to PipeWire are sent from a background thread, so the window
+  never waits on them. This matters most in the Flatpak, where each one
+  goes through `flatpak-spawn`.
+
 ## v1.10.3
 
 - Fix: the Flatpak did not play the introduction on its first start if
