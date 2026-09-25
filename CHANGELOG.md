@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.8.1
+
+- **Bazzite / immutable systems**: the "needs PyQt6" message used to
+  suggest `apt` and `dnf`, which cannot install anything on these hosts.
+  It now explains the distrobox steps. `install.sh` run on such a host
+  without PyQt6 stops with the same steps instead of creating a menu entry
+  that cannot start. The README has the steps written out.
+
 ## v1.8.0
 
 - **New logo**: headphones with a glowing orb of sound between the ear

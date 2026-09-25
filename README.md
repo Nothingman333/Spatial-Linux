@@ -141,9 +141,23 @@ Close the app, delete its folder, and remove the menu entry:
 if you used distrobox). To also forget your settings, delete
 `~/.local/share/spatiallinux`.
 
-**Bazzite and other immutable systems:** install it inside a distrobox
-container. The container shares PipeWire with the host, so the audio works,
-and `install.sh` puts the launcher in the host's menu.
+### Bazzite, Silverblue and other immutable systems
+
+`apt` and `dnf` cannot install PyQt6 on the host of these systems, so
+Spatial Linux runs inside a distrobox container. The container shares
+PipeWire with the host, so the sound works normally. In a terminal:
+
+```bash
+distrobox create -n ubuntu -i ubuntu:24.04   # only if you don't have one yet
+distrobox enter ubuntu
+sudo apt install -y python3-pyqt6
+cd ~/spatiallinux-*/        # the folder you extracted
+./install.sh
+exit
+```
+
+Run `install.sh` **inside** the container: the menu entry it creates then
+starts Spatial Linux there. Run on the host, it stops and shows these steps.
 
 ## Usage
 
