@@ -6,8 +6,10 @@
 Linux? Spatial Linux is a free, open-source alternative. It adds a virtual
 output device to PipeWire and processes everything you play through it:
 3D surround for headphones, a room around the music, clarity, bass and a
-night mode, plus a 10-band equaliser. It runs entirely on PipeWire's
-built-in filters, so no extra audio plugins are needed.
+night mode, plus a 10-band equaliser. You can also set **each app's volume
+separately** — game chat quiet, music loud — right from the app. It runs
+entirely on PipeWire's built-in filters, so no extra audio plugins are
+needed.
 
 Free and open source · made by Sali · interface in English and Turkish
 
@@ -37,6 +39,9 @@ what kind of app this is.</sub>
 | **App volumes** | Each app that is playing sound gets its own volume slider and mute button, from the header's mixer button. |
 | **Pre-Amp and volume** | ±12 dB input gain, and the volume of the Spatial Linux device. |
 
+- **Per-app volume.** The mixer button in the header lists every app that
+  is playing sound (browser, game, Discord, Spotify…) with its own volume
+  slider and mute button. The list updates by itself as apps start and stop.
 - **One mode at a time.** Picking a mode switches the previous one off
   completely. Every mode remembers its last setting.
 - **Remembers everything.** Every setting, the power state and the volume
@@ -142,7 +147,9 @@ and `install.sh` puts the launcher in the host's menu.
 2. Pick a **mode** on the top row and adjust it with the sliders in its panel.
 3. Shape the sound on the **equaliser**, or pick a **preset**. Save your own
    with **Save**.
-4. **Defaults** returns everything to the factory settings.
+4. Use the **mixer button** (three faders, top right) to set each app's own
+   volume or mute it.
+5. **Defaults** returns everything to the factory settings.
 
 ## How it works
 

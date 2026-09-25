@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.7.1
+
+- README: per-app volume control is now described up front, in the
+  highlights and in the usage steps. No changes to the app.
+
 ## v1.7.0
 
 - **Subwoofer, Reverb and Clarity can be switched off** in the 3D panel,
