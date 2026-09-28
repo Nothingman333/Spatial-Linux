@@ -14,11 +14,11 @@ release, 1.10.4, in one place. (The test releases on the way,
   the side and back channels from beside and behind you, each through the
   measured head from its own direction. **Stereo sounds exactly as in
   1.10.4** (checked sample by sample).
-- **Speakers in a room -- a second kind of 3D.** Instead of the classic
+- **Speakers in a room — a second kind of 3D.** Instead of the classic
   headphone 3D you can hear speakers in front of you in a **Studio**, a
   **Living room** or a **Cinema**: each speaker, and each reflection off
   the walls, floor and ceiling, from its own direction through the
-  measured head, then the room's own reverb -- the way Dolby Atmos for
+  measured head, then the room's own reverb — the way Dolby Atmos for
   Headphones and similar virtualisers take sound out of your head. Works
   for stereo and 5.1 / 7.1. Tuned by measurement to sound neutral (within
   about ±2 dB from 40 Hz to 16 kHz on music) and to be exactly as loud as
@@ -28,8 +28,8 @@ release, 1.10.4, in one place. (The test releases on the way,
   SADIE II database, University of York). Heads differ like ears do; pick
   the one that puts the sound most clearly in front of you. Both are
   matched in strength.
-- **Your own HRIR file.** Load an HRIR file in the HeSuVi layout -- 14
-  channels, or 7 for a symmetric head -- and every channel runs through
+- **Your own HRIR file.** Load an HRIR file in the HeSuVi layout — 14
+  channels, or 7 for a symmetric head — and every channel runs through
   it. ("Own file" is one choice: the first time, it asks for the file.)
 - **Headphone correction.** Load the AutoEQ `ParametricEQ.txt` for your
   headphone model (autoeq.app) to even out its own sound; On / Off at any
@@ -43,7 +43,7 @@ release, 1.10.4, in one place. (The test releases on the way,
 
 - With Sony headphones connected (WH-1000XM5 and relatives), switch
   between **Noise cancelling**, **Ambient sound** and **Off** from a glass
-  card on the main window -- the same setting as in Sony's phone app, no
+  card on the main window — the same setting as in Sony's phone app, no
   phone needed. It talks to the headphones directly over Bluetooth, the
   way the Sony app does (following Gadgetbridge's open implementation of
   Sony's protocol), with nothing to install, and always in the
@@ -74,11 +74,11 @@ release, 1.10.4, in one place. (The test releases on the way,
 - **The header is a flowing picture of light:** streaks drifting at their
   own pace, sparks falling through them, a swaying bloom and a band of
   light sweeping across now and then; dimmer and slower while Spatial Linux
-  is off. The name is set large -- "Spatial", then "Linux" in bold italic.
+  is off. The name is set large — "Spatial", then "Linux" in bold italic.
 - **Frosted glass:** the round buttons, the volume and pre-amp pills, the
   mode tabs, the power button and the noise card show the picture behind
   them blurred, and the drop-downs (headphones, equaliser, app volumes)
-  are frosted glass over the window -- all one material, dark and even.
+  are frosted glass over the window — all one material, dark and even.
 - **Options look like options:** every mode tab and choice is a glass pill
   of its own; the chosen one is a white thumb that slides over to the new
   choice, stretching a little on the way.
@@ -91,7 +91,7 @@ release, 1.10.4, in one place. (The test releases on the way,
   in; a mode panel fades up as it opens.
 - **Smoother animations:** everything that moves runs on one shared clock
   and is painted in one pass, follows the real time between frames, and
-  the header's light moves by fractions of a pixel -- no hitches, no
+  the header's light moves by fractions of a pixel — no hitches, no
   one-pixel steps. Animations still stop while the window is in the
   background.
 - A quieter header: no date or status chips; the tabs and the power button
@@ -107,12 +107,6 @@ release, 1.10.4, in one place. (The test releases on the way,
 
 - Publishing a new version no longer removes the older ones.
 
-## v2.0.0-beta.14 (in 2.0.0)
-
-- The header's glass (noise card, volume and pre-amp, tabs, round
-  buttons) is made exactly like the drop-downs' glass: the light behind
-  drained of colour, at half strength, under the same dark tint.
-
 ## v2.0.0-beta.13
 
 - **Drop-downs are frosted the same all over.** They were grey and dark
@@ -124,7 +118,7 @@ release, 1.10.4, in one place. (The test releases on the way,
 
 - **Noise cancelling is back on the main window**, in its glass card in
   the header, now that it works: it appears once the headphones have
-  answered (their current mode need not be known -- the WH-1000XM5 never
+  answered (their current mode need not be known — the WH-1000XM5 never
   says it, so no mode shows as picked until you choose one). The
   headphones panel keeps the choice of headphones and what is going on.
 
@@ -132,7 +126,7 @@ release, 1.10.4, in one place. (The test releases on the way,
 
 - **Noise cancelling works again with the WH-1000XM5.** The log showed
   why: the headphones accept the connection and every setting, but never
-  answer the question "which mode are you in?" -- every attempt waited six
+  answer the question "which mode are you in?" — every attempt waited six
   seconds and gave up. Up to beta.7 that failed read still left the mode
   buttons working; from beta.8 the controls waited for an answer that
   never came. Now the question is asked briefly (both forms the headphones
@@ -151,8 +145,8 @@ release, 1.10.4, in one place. (The test releases on the way,
   noise cancelling cannot be set, or that could not be reached, show
   nothing on the main window.
 - **Pick the headphones yourself:** the headphones panel has a new
-  Noise cancelling row -- Automatic, or any connected Bluetooth
-  headphones -- with what is going on (found, looking, could not reach
+  Noise cancelling row — Automatic, or any connected Bluetooth
+  headphones — with what is going on (found, looking, could not reach
   them and why) and Try again. Opening the panel looks again when nothing
   has been found, as it did up to beta.7.
 - **Headphones that do not answer the first question are no longer taken
@@ -170,7 +164,7 @@ release, 1.10.4, in one place. (The test releases on the way,
 - **Smoother animations.** Every animation now runs on one shared clock,
   so everything that moves is updated together and painted in one pass;
   before, each had its own timer, they ticked out of step and the window
-  was repainted several times a frame at uneven moments -- the hitches.
+  was repainted several times a frame at uneven moments — the hitches.
   Motion follows the real time since the last frame (a late frame no
   longer makes it hop), the header's light is placed to a fraction of a
   pixel (no more one-pixel steps in the slow drift) and runs at 30 fps,
@@ -211,7 +205,7 @@ release, 1.10.4, in one place. (The test releases on the way,
   hover; drop-downs grow and fade in; a mode panel fades up as it opens;
   the noise card fades in, and its line changes with a fade.
 - **Less on the header:** no date, no "3D sound enhancement", no
-  "Running" or "3D Surround 60%" chips -- the tabs and the power button
+  "Running" or "3D Surround 60%" chips — the tabs and the power button
   already say it. The output chip's dot is green while Spatial Linux is on.
 - **Fixed:** the "SPATIAL LINUX" wordmark in the introduction had holes
   and seams in some letters (Inter's overlapping outlines drawn with the
@@ -263,7 +257,7 @@ carefully.
 - **A sound for every noise-cancelling change.** Sony's headphones stay
   silent when the mode is changed from an app, so Spatial Linux plays its
   own: a whoosh closing down with two falling notes for noise cancelling,
-  the same whoosh opening up with three rising notes for ambient sound, and
+  the same whoosh opening up with two rising notes for ambient sound, and
   two short ticks for off. Made by Spatial Linux itself, no sound files
   from elsewhere.
 - **Ambient sound strength.** In ambient sound, a slider sets how much of

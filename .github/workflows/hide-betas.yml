@@ -1,0 +1,28 @@
+# Hides the test releases (every pre-release) by turning them back into
+# drafts: a draft is seen only by people who can push to the repository,
+# and its downloads and tag stay as they were. Run it from Actions ->
+# "Hide test releases" -> "Run workflow". To show one again, open it on the
+# Releases page, edit it and press "Publish release".
+name: Hide test releases
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  hide:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Turn every pre-release into a draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh api --paginate "repos/$REPO/releases" \
+            --jq '.[] | select(.prerelease and (.draft | not)) | "\(.id) \(.tag_name)"' |
+          while read -r id tag; do
+            echo "Hiding $tag"
+            gh api -X PATCH "repos/$REPO/releases/$id" -F draft=true > /dev/null
+          done

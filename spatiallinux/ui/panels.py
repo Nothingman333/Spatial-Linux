@@ -42,7 +42,7 @@ def make_toggle(on: bool, slider: QSlider, on_toggle) -> QPushButton:
 
 
 class FeaturePanel(QFrame):
-    """Base for the panel that appears under the feature row."""
+    """Base for the panel that appears under the header."""
 
     def __init__(self, title: str, parent=None):
         super().__init__(parent)

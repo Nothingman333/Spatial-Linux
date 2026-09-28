@@ -44,7 +44,7 @@ what kind of app this is.</sub>
 | **5.1 / 7.1 surround** *(new in 2.0)* | Games and films that play surround are heard from all around you: centre, sides and back each from their own place, instead of being folded into stereo first. Stereo sounds exactly as before. |
 | **3D head** *(new in 2.0)* | Pick whose ears the 3D sound is measured with: the MIT KEMAR head or a Neumann KU 100 (SADIE II). Heads differ like ears do; choose the one that puts the sound most clearly in front of you. |
 | **Your own HRIR** *(new in 2.0)* | Load an HRIR file in the HeSuVi layout (14 channels, or 7 for a symmetric head) and every channel runs through it. |
-| **Sony noise cancelling** *(new in 2.0)* | With Sony headphones (WH-1000XM5 and relatives), switch between noise cancelling, ambient sound and off right on the main window — the setting from Sony's app, no phone needed — with a short sound confirming each change, and a slider for how much of the outside ambient sound lets in. |
+| **Sony noise cancelling** *(new in 2.0)* | With Sony headphones (WH-1000XM5 and relatives), switch between noise cancelling, ambient sound and off right on the main window — the setting from Sony's app, no phone needed — with a short sound confirming each change, and a slider for how much of the outside world ambient sound lets in. |
 | **Headphone correction** *(new in 2.0)* | Load the AutoEQ `ParametricEQ.txt` for your headphone model (from [autoeq.app](https://autoeq.app)) to even out its own sound. On / Off at any time. |
 | **Ambience** | Convolution reverb that builds a room around the music, with its own **Treble** control. |
 | **Fidelity** | Lifts the deepest lows and the finest highs, the ranges the ear hears least. |
@@ -190,15 +190,19 @@ starts Spatial Linux in the container.
 ## Usage
 
 1. Press the **power button**. All your audio now runs through Spatial Linux.
-2. Pick a **mode** on the top row and adjust it with the sliders in its panel.
-3. Shape the sound on the **equaliser** (its button in the header), or pick a **preset**. Save your own
-   with **Save**.
+2. Pick a **mode** from the tabs in the header and adjust it with the
+   sliders in its panel.
+3. Shape the sound on the **equaliser** (the curve button, top right), or
+   pick a **preset**. Save your own with **Save**.
 4. Use the **mixer button** (three faders, top right) to set each app's own
    volume or mute it.
-5. *(new in 2.0)* Open the **headphones button** to pick the 3D sound
-   (Classic, Studio, Living room, Cinema or your own HRIR file), the 3D
-   head, and your headphones' correction.
-6. **Defaults** returns everything to the factory settings.
+5. Open the **headphones button** to pick the 3D sound (Classic, Studio,
+   Living room, Cinema or your own HRIR file), the 3D head, and your
+   headphones' correction.
+6. With Sony headphones, switch noise cancelling on the card that appears
+   in the header.
+7. **Defaults**, in the equaliser, returns everything to the factory
+   settings.
 
 ## How it works
 

@@ -93,8 +93,8 @@ same mapping as PipeWire's own `sink-virtual-surround-7.1-hesuvi.conf` (the
 centre at ×2 because HeSuVi splits it in two, the LFE on the centre's
 responses at half that). A 7-channel file is HeSuVi's symmetric kind: it
 holds FL-L, FL-R, SL-L, SL-R, BL-L, BL-R and FC-L, and the right-hand
-speakers use the left-hand ones with the ears swapped. The 3D intensity crossfades between the plain downmix and the
-rendered sound. Spatial Linux ships no such files: many of the popular ones
+speakers use the left-hand ones with the ears swapped. The 3D intensity
+crossfades between the plain downmix and the rendered sound. Spatial Linux ships no such files: many of the popular ones
 were recorded from commercial virtualisers and carry no licence, so the
 listener brings their own. The file is copied into the data folder, where
 the (host's) PipeWire can read it.
@@ -121,34 +121,35 @@ module:
   WF-1000XM4/XM5, LinkBuds).
 - **The setting.** Ambient sound control, `0x68` (set) / `0x66` (get): on
   or off, then noise cancelling or ambient sound, focus on voice, and the
-  ambient level (20 of 20).
+  ambient level (1–20).
+
+All of this runs in a background thread, once when the app starts (and,
+while no headphones have been found, again when the window comes back to
+the front, at most every half minute). A glass card in the header shows
+the mode, the ambient level and Conversation (focus on voice), with a
+spinner while it talks to the headphones. It appears only once they have
+answered; if they are not found on their own, they can be picked by hand
+in the headphones panel. Noise cancelling itself has no strength field in
+the command (the headphones adapt it on their own), so only ambient sound
+has a slider.
+
+Some headphones — the WH-1000XM5 among them — accept the session and every
+setting but never answer the "which mode?" question (`0x66`). So it is
+asked briefly, in both forms (`0x15`, `0x17`), and no answer just means no
+mode is shown as picked until one is chosen.
 
 Every attempt is written to `~/.local/share/spatiallinux/noise-cancelling.log`
 (the devices seen, the channel, and what the system reported), for when
-the headphones cannot be reached. The controls, in a card on the main
-window, show once the headphones have answered (they can also be picked by
-hand in the headphones panel).
-Some headphones -- the WH-1000XM5 tested here among them -- accept the
-session and every setting but never answer the "which mode?" question
-(`0x66`), so it is asked briefly, in both forms (`0x15`, `0x17`), and no
-answer just means no mode is shown as picked.
-
-It runs in a background thread, once when the app starts (and, while no
-headphones have been found, again when the window comes back to the front,
-at most every half minute). A glass card in the header shows the mode,
-ambient level and Conversation (focus on voice) read from the headphones,
-and a spinner while it talks to them; it appears only when they are found.
-Noise cancelling itself has no strength field in the command (the
-headphones adapt it on their own), so only ambient sound has a slider.
+the headphones cannot be reached.
 
 The headphones announce a mode change made with their button, but not one
 made by an app, so Spatial Linux confirms each change with a short sound of
 its own ([`cues.py`](../spatiallinux/cues.py)): synthesised once with the
 standard library into the data folder (a filtered-noise whoosh whose
 cut-off closes or opens, and soft bell-like notes falling or rising; two
-ticks for off) and played with `pw-play`. Checked against a simulated headset and
-the byte sequences known from Gadgetbridge (the init frame is
-`3e 0c 00 00 00 00 02 00 00 0e 3c`), not yet against every model.
+ticks for off) and played with `pw-play`. Tested with a WH-1000XM5 and
+against the byte sequences known from Gadgetbridge (the init frame is
+`3e 0c 00 00 00 00 02 00 00 0e 3c`), not yet with every model.
 
 ### Headphone correction
 
@@ -354,8 +355,8 @@ The glass controls on it are frosted for real: each frame the same layers
 are also composed at a quarter of the size, blurred, and painted inside
 each glass shape before the control draws itself.
 
-**Choices** ([controls.py](../spatiallinux/ui/controls.py)) -- the mode
-tabs, noise cancelling, the headphone options -- are each a glass pill, so
+**Choices** ([controls.py](../spatiallinux/ui/controls.py)) — the mode
+tabs, noise cancelling, the headphone options — are each a glass pill, so
 they read as options; the chosen one is a white thumb that slides to the
 new choice, its leading edge leaving first and the trailing edge catching
 up, and each option's text darkens exactly as far as the thumb covers it.
@@ -366,8 +367,8 @@ it again while open kept the moving picture moving behind the glass, but
 each read redrew everything under it and held up the other animations.)
 They grow and fade in as they open.
 
-**One clock.** Every animation -- the header, the mode scenes, the byline,
-the power button -- runs on one shared timer, so everything that moves is
+**One clock.** Every animation — the header, the mode scenes, the byline,
+the power button — runs on one shared timer, so everything that moves is
 updated in the same moment and painted in one pass; with a timer each, they
 ticked out of step and the window was repainted several times a frame, at
 uneven moments, which showed as stutter. Motion is worked out from the real
@@ -379,9 +380,9 @@ Qt has no bloom filter; the glow is made the way it is in vector art, by
 drawing the same shape in progressively wider and fainter passes and laying
 the crisp line on top. This is not cheap — the first version burned **161%
 CPU** with one panel open. Measured and brought down to **30%** with a
-frame rate per scene (slow scenes at 20 fps), fewer passes, antialiasing
-switched off for the blurred passes, and unnecessary radial gradients
-removed. With the panel closed the timers stop: **0.0%**.
+frame rate per scene, fewer passes, antialiasing switched off for the
+blurred passes, and unnecessary radial gradients removed. With the panel
+closed, or the window in the background, the scenes stop: **0.0%**.
 
 ### Why there is no Spatial Stereo or Pitch
 

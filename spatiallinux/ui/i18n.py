@@ -54,7 +54,7 @@ _STRINGS = {
                         "off first, so the sound is not processed twice.",
                         "Spatial Linux başka bir pencerede zaten açık (normal "
                         "sürüm ya da Flatpak). Ses iki kez işlenmesin diye "
-                        "önce onu kapatın."),
+                        "önce onu kapat."),
     "engine_failed":   ("Could not start the engine:",
                         "Motor başlatılamadı:"),
     "tools_missing":   ("Spatial Linux needs these PipeWire tools, which were not "
@@ -162,15 +162,16 @@ _STRINGS = {
                         "through Spatial Linux.",
                         "Güç düğmesine bas: bütün sesin Spatial Linux "
                         "üzerinden geçer."),
-    "howto_2":         ("Pick a mode on the top row and set it with the "
-                        "sliders in its panel.",
-                        "Üst sıradan bir mod seç, panelindeki kaydırıcılarla "
-                        "ayarla."),
-    "howto_3":         ("Shape the sound on the equaliser: drag a point, "
-                        "double-click to reset. EQ On / Off bypasses it.",
-                        "Ekolayzırda sesi şekillendir: noktayı sürükle, çift "
-                        "tıkla sıfırla. EQ Açık / Kapalı ile devre dışı "
-                        "bırakılır."),
+    "howto_2":         ("Pick a mode from the tabs in the header and set it "
+                        "with the sliders in its panel.",
+                        "Başlıktaki sekmelerden bir mod seç, panelindeki "
+                        "kaydırıcılarla ayarla."),
+    "howto_3":         ("Open the equaliser with the curve button and shape "
+                        "the sound: drag a point, double-click to reset. "
+                        "EQ On / Off bypasses it.",
+                        "Eğri düğmesiyle ekolayzırı aç, sesi şekillendir: "
+                        "noktayı sürükle, çift tıkla sıfırla. EQ Açık / "
+                        "Kapalı ile devre dışı bırakılır."),
     "howto_4":         ("Pick a preset or save your own. Everything is "
                         "remembered for next time.",
                         "Bir preset seç ya da kendininkini kaydet. Her şey "
@@ -250,7 +251,7 @@ _STRINGS = {
     "sony_failed_short": ("Couldn't reach the headphones", "Kulaklığa ulaşılamadı"),
     "sony_voice": ("Conversation", "Sohbet"),
     "sony_voice_tip": ("Brings voices forward", "Konuşmaları öne çıkarır"),
-    "sony_nc_note": ("The headphones set its strength themselves.", "Gücünü kulaklık kendisi ayarlar."),
+    "sony_nc_note": ("The headphones set the strength themselves.", "Gücünü kulaklık kendisi ayarlar."),
     "sony_reading":    ("Reading the headphones…", "Kulaklık okunuyor…"),
     "sony_applying":   ("Sending to the headphones…", "Kulaklığa gönderiliyor…"),
     "sony_failed": ("Couldn't reach the headphones. If the headphones app is open on your phone, close it.", "Kulaklığa ulaşılamadı. Telefonda kulaklık uygulaması açıksa kapat."),
