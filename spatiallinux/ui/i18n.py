@@ -184,62 +184,34 @@ _STRINGS = {
     "hp_tip":          ("Headphones & 3D head", "Kulaklık ve 3D kafa"),
     "hp_title":        ("HEADPHONES", "KULAKLIK"),
     "hp_head":         ("3D HEAD", "3D KAFA"),
-    "hp_head_hint":    ("Whose ears the 3D sound is measured with. Heads "
-                        "differ, like ears do: pick the one where sound is "
-                        "most clearly in front of you and outside your head.",
-                        "3D sesin hangi kulaklarla ölçüldüğü. Kafalar da "
-                        "kulaklar gibi farklıdır: sesin en net önünde ve "
-                        "kafanın dışında duyulduğunu seç."),
+    "hp_head_hint": ("Pick the one that puts sound most clearly in front of you.", "Sesi en net önünde duyduğunu seç."),
     "hp_style":        ("3D SOUND", "3D SES"),
     "style_classic":   ("Classic", "Klasik"),
     "style_classic_tip": ("Spatial Linux's own 3D: your music stays clear and "
                           "close, with space around it",
                           "Spatial Linux'un kendi 3D'si: müzik net ve yakın "
                           "kalır, etrafında bir alan açılır"),
-    "style_classic_hint": ("Spatial Linux's own 3D: the sound stays clear and "
-                           "close, with width and a touch of room around it.",
-                           "Spatial Linux'un kendi 3D'si: ses net ve yakın "
-                           "kalır, etrafında genişlik ve biraz oda olur."),
+    "style_classic_hint": ("Clear and close, with a little space around it.", "Net ve yakın; etrafında hafif bir alan."),
     "style_studio":    ("Studio", "Stüdyo"),
     "style_studio_tip": ("Speakers in a treated studio: close, precise, "
                          "very little room",
                          "Akustiği düzenlenmiş bir stüdyoda hoparlörler: "
                          "yakın, net, çok az oda"),
-    "style_studio_hint": ("Virtual speakers in a treated studio. You hear "
-                          "speakers in front of you instead of headphones: "
-                          "each speaker, and each reflection off the walls, "
-                          "floor and ceiling, from its own direction.",
-                          "Akustiği düzenlenmiş bir stüdyoda sanal "
-                          "hoparlörler. Kulaklık yerine önündeki hoparlörleri "
-                          "duyarsın: her hoparlörü ve duvar, zemin, tavandan "
-                          "gelen her yansımayı kendi yönünden."),
+    "style_studio_hint": ("Speakers in front of you, in a small, quiet room.", "Önünde hoparlörler, küçük ve sessiz bir odada."),
     "style_living":    ("Living room", "Salon"),
     "style_living_tip": ("Speakers in a living room: natural and relaxed",
                          "Salonda hoparlörler: doğal ve rahat"),
-    "style_living_hint": ("Virtual speakers in a living room: a little further "
-                          "away, with the room's natural sound around them.",
-                          "Salonda sanal hoparlörler: biraz daha uzakta, "
-                          "etraflarında odanın doğal sesiyle."),
+    "style_living_hint": ("Speakers in a living room: natural and relaxed.", "Salonda hoparlörler: doğal ve rahat."),
     "style_cinema":    ("Cinema", "Sinema"),
     "style_cinema_tip": ("Speakers in a cinema: big and spacious",
                          "Sinemada hoparlörler: büyük ve geniş"),
-    "style_cinema_hint": ("Virtual speakers in a cinema: far away, big and "
-                          "enveloping — made for films and games.",
-                          "Sinemada sanal hoparlörler: uzakta, büyük ve saran "
-                          "bir ses — filmler ve oyunlar için."),
+    "style_cinema_hint": ("A big hall: wide and enveloping, for films and games.", "Büyük bir salon: geniş ve saran; film ve oyun için."),
     "style_custom":    ("Own file", "Kendi dosyan"),
     "style_custom_tip": ("Your own HRIR file (HeSuVi layout, 14 or 7 "
                          "channels); picking this the first time asks for it",
                          "Kendi HRIR dosyan (HeSuVi düzeni, 14 ya da 7 "
                          "kanal); ilk seçişte dosyayı sorar"),
-    "style_custom_hint": ("Instead of Spatial Linux's own 3D, every channel "
-                          "goes through your own HRIR file (a HeSuVi .wav, "
-                          "14 or 7 channels). The intensity blends it with "
-                          "the plain sound.",
-                          "Spatial Linux'un kendi 3D'si yerine tüm kanallar "
-                          "kendi HRIR dosyandan geçer (HeSuVi .wav dosyası, "
-                          "14 ya da 7 kanal). Yoğunluk onu düz sesle "
-                          "karıştırır."),
+    "style_custom_hint": ("Your own HRIR file (HeSuVi, 14 or 7 channels).", "Kendi HRIR dosyan (HeSuVi, 14 ya da 7 kanal)."),
     "head_kemar":      ("KEMAR", "KEMAR"),
     "head_kemar_tip":  ("MIT KEMAR dummy head (the original sound)",
                         "MIT KEMAR yapay kafa (orijinal ses)"),
@@ -255,48 +227,24 @@ _STRINGS = {
     "sony_nc":         ("Noise cancelling", "Gürültü engelleme"),
     "sony_ambient":    ("Ambient sound", "Ortam sesi"),
     "sony_off":        ("Off", "Kapalı"),
-    "sony_hint":       ("Your Sony headphones' own setting, as in Sony's app. "
-                        "Ambient sound lets the room in; Off turns both off.",
-                        "Sony kulaklığının kendi ayarı, Sony uygulamasındaki "
-                        "gibi. Ortam sesi dışarıyı içeri alır; Kapalı ikisini "
-                        "de kapatır."),
-    "sony_level":      ("How much", "Ne kadar"),
-    "sony_voice":      ("Focus on voice", "Sese odaklan"),
-    "sony_voice_tip":  ("Lets voices through more than other sounds",
-                        "Konuşmaları diğer seslerden daha çok içeri alır"),
-    "sony_nc_note":    ("The headphones set the strength of noise cancelling "
-                        "themselves, to your surroundings; they take no "
-                        "setting for it (Sony's app has none either).",
-                        "Gürültü engellemenin gücünü kulaklık ortama göre "
-                        "kendisi ayarlıyor; bunun için bir ayar kabul "
-                        "etmiyor (Sony'nin uygulamasında da yok)."),
+    "sony_level": ("Level", "Seviye"),
+    "sony_retry": ("Try again", "Tekrar dene"),
+    "sony_voice": ("Conversation", "Sohbet"),
+    "sony_voice_tip": ("Brings voices forward", "Konuşmaları öne çıkarır"),
+    "sony_nc_note": ("The headphones set its strength themselves.", "Gücünü kulaklık kendisi ayarlar."),
     "sony_reading":    ("Reading the headphones…", "Kulaklık okunuyor…"),
     "sony_applying":   ("Sending to the headphones…", "Kulaklığa gönderiliyor…"),
-    "sony_failed":     ("The headphones did not answer. Check that they are "
-                        "connected, and close Sony's app on your phone if it "
-                        "is connected to them.",
-                        "Kulaklık yanıt vermedi. Bağlı olduğundan emin ol; "
-                        "telefonundaki Sony uygulaması bağlıysa onu kapat."),
+    "sony_failed": ("Couldn't reach the headphones. If the headphones app is open on your phone, close it.", "Kulaklığa ulaşılamadı. Telefonda kulaklık uygulaması açıksa kapat."),
     "sony_no_bluetooth": ("This Python has no Bluetooth support, so the "
                           "headphones cannot be reached.",
                           "Bu Python'da Bluetooth desteği yok, kulaklığa "
                           "ulaşılamıyor."),
     "hp_eq":           ("HEADPHONE CORRECTION", "KULAKLIK DÜZELTME"),
-    "hp_eq_hint":      ("Evens out your headphones' own sound. Download the "
-                        "ParametricEQ.txt for your model from autoeq.app "
-                        "and load it here.",
-                        "Kulaklığının kendi rengini düzeltir. Modelinin "
-                        "ParametricEQ.txt dosyasını autoeq.app'ten indirip "
-                        "buradan yükle."),
+    "hp_eq_hint": ("Evens out your headphones' sound. Get the file from autoeq.app.", "Kulaklığının rengini düzeltir. Dosyayı autoeq.app'ten indir."),
     "hp_load_eq":      ("Load file…", "Dosya yükle…"),
     "hp_remove_eq":    ("Remove", "Kaldır"),
     "hp_no_eq":        ("None loaded", "Yüklenmedi"),
-    "hp_surround":     ("Games and films that play 5.1 or 7.1 are heard "
-                        "from all around you: every channel from its own "
-                        "place. Stereo is not changed.",
-                        "5.1 ya da 7.1 çalan oyun ve filmler çevrenden "
-                        "duyulur: her kanal kendi yerinden. Stereo "
-                        "değişmez."),
+    "hp_surround": ("In 5.1 and 7.1, every channel comes from its own place.", "5.1 ve 7.1'de her kanal kendi yerinden duyulur."),
     "hrir_bad":        ("This WAV file has {n} channels. An HRIR file in the "
                         "HeSuVi layout has 14 (or 7, for a symmetric head) — "
                         "the files in HeSuVi's hrir folder.",

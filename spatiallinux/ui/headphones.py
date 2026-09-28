@@ -50,6 +50,40 @@ class HeadphonesButton(QPushButton):
         p.end()
 
 
+class Spinner(QWidget):
+    """A small turning arc: something is being read or sent."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(16, 16)
+        self._angle = 0
+        from PyQt6.QtCore import QTimer
+        self._timer = QTimer(self)
+        self._timer.setInterval(30)
+        self._timer.timeout.connect(self._turn)
+
+    def _turn(self):
+        self._angle = (self._angle + 12) % 360
+        self.update()
+
+    def setVisible(self, on: bool):
+        super().setVisible(on)
+        if on:
+            self._timer.start()
+        else:
+            self._timer.stop()
+
+    def paintEvent(self, ev):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        pen = QPen(QColor(theme.ACCENT2))
+        pen.setWidthF(2.2)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        p.setPen(pen)
+        p.drawArc(QRectF(2, 2, 12, 12), -self._angle * 16, 100 * 16)
+        p.end()
+
+
 class HeadphonesPanel(QFrame):
     """The drop-down. Emits what the listener picked."""
 
@@ -62,6 +96,7 @@ class HeadphonesPanel(QFrame):
     sonyPicked = pyqtSignal(str)          # "nc" / "ambient" / "off"
     sonyLevel = pyqtSignal(int)           # ambient strength, on release
     sonyVoice = pyqtSignal(bool)          # focus on voice
+    sonyRetry = pyqtSignal()
 
     WIDTH = 540
 
@@ -155,8 +190,14 @@ class HeadphonesPanel(QFrame):
         box = QVBoxLayout(self.sony_box)
         box.setContentsMargins(0, 4, 0, 0)
         box.setSpacing(8)
+        head_row = QHBoxLayout()
+        head_row.setSpacing(8)
         self.sony_heading = self._heading(t("sony_title"))
-        box.addWidget(self.sony_heading)
+        head_row.addWidget(self.sony_heading)
+        self.sony_spinner = Spinner()
+        head_row.addWidget(self.sony_spinner)
+        head_row.addStretch()
+        box.addLayout(head_row)
         self.sony_buttons = self._choices(
             box, ("nc", "ambient", "off"), None, "sony", self.sonyPicked.emit)
 
@@ -192,9 +233,16 @@ class HeadphonesPanel(QFrame):
         self.sony_nc_note = self._hint(t("sony_nc_note"))
         box.addWidget(self.sony_nc_note)
 
+        status_row = QHBoxLayout()
         self.sony_status = self._hint("")
-        box.addWidget(self.sony_status)
-        box.addWidget(self._hint(t("sony_hint")))
+        status_row.addWidget(self.sony_status, 1)
+        self.sony_retry = QPushButton(t("sony_retry"))
+        self.sony_retry.setObjectName("smallButton")
+        self.sony_retry.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.sony_retry.clicked.connect(self.sonyRetry.emit)
+        self._keep_width(self.sony_retry)
+        status_row.addWidget(self.sony_retry)
+        box.addLayout(status_row)
         outer.addWidget(self.sony_box)
         self.set_sony(sony)
 
@@ -273,8 +321,13 @@ class HeadphonesPanel(QFrame):
                 self.sony_level_label.setText(str(self.sony_slider.value()))
             self.sony_voice.setChecked(bool(sony.get("voice")))
             status = sony.get("status")
-            self.sony_status.setText(t(f"sony_{status}") if status else "")
-            self.sony_status.setVisible(bool(status))
+            # reading and sending show as the spinner; only a failure is
+            # put into words, with a way to try again
+            self.sony_spinner.setVisible(busy)
+            failed = status not in (None, "reading", "applying")
+            self.sony_status.setText(t(f"sony_{status}") if failed else "")
+            self.sony_status.setVisible(failed)
+            self.sony_retry.setVisible(failed)
         self.adjustSize()
 
     def _pick_style(self, key: str):

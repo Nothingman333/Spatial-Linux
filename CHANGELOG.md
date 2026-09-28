@@ -1,5 +1,23 @@
 # Changelog
 
+## v2.0.0-beta.6
+
+- **Deeper, quieter confirmation sounds.** They were too bright and loud.
+  Now about 4.5 dB quieter, an octave lower, with nothing sharp in the
+  highs; noise cancelling ends in a deep, soft thump, so you can hear the
+  outside being shut out.
+- **The headphones are looked up once.** They were searched for, and read,
+  every time the panel opened. Now once; after that the panel shows what is
+  known straight away, and asks again only after a failed connection
+  ("Try again") or when other headphones are connected.
+- **A spinner while the headphones are being read or set**, instead of a
+  panel that seemed to do nothing, and the section appears as soon as the
+  headphones are found.
+- **Sturdier connection** with two devices connected (the headphones'
+  multipoint): a failed attempt is retried once, with a longer wait.
+- **Shorter texts** in the headphones panel; "Focus on voice" is now
+  "Conversation".
+
 ## v2.0.0-beta.5
 
 - **A sound for every noise-cancelling change.** Sony's headphones stay

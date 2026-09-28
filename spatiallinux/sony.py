@@ -43,7 +43,9 @@ AMBIENT_LEVEL = 20
 
 HEADER, TRAILER, ESCAPE = 0x3E, 0x3C, 0x3D
 T_ACK, T_COMMAND = 0x01, 0x0C
-TIMEOUT = 4.0
+TIMEOUT = 6.0
+# The channel a pair of headphones answered on, so it is looked up once.
+_channels: dict[str, int] = {}
 
 
 class SonyError(Exception):
@@ -76,6 +78,13 @@ def bluetooth_outputs(pw_dump_text: str) -> list[dict]:
                     "name": props.get("device.description")
                     or props.get("node.description") or addr})
     return out
+
+
+def looks_like_sony(name: str) -> bool:
+    """Sony's own model names (WH-1000XM5, WF-1000XM4, LinkBuds, ...)."""
+    import re
+    return bool(re.search(r"\b(WH|WF|WI|MDR)-|LinkBuds|\bSony\b", name or "",
+                          re.IGNORECASE))
 
 
 def find_headphones(host_command) -> list[dict]:
@@ -254,13 +263,28 @@ class _Session:
 
 
 def _open(address: str) -> _Session:
+    """A session, tried twice: with two devices connected (the headphones'
+    multipoint) the first attempt sometimes finds them busy."""
+    try:
+        return _open_once(address)
+    except SonyError as e:
+        if str(e) != "connect_failed":
+            raise
+        _channels.pop(address, None)
+        import time
+        time.sleep(0.8)
+        return _open_once(address)
+
+
+def _open_once(address: str) -> _Session:
     if not available():
         raise SonyError("no_bluetooth")
-    channel = None
-    for uuid in SERVICE_UUIDS:
-        channel = rfcomm_channel(address, uuid)
-        if channel:
-            break
+    channel = _channels.get(address)
+    if not channel:
+        for uuid in SERVICE_UUIDS:
+            channel = rfcomm_channel(address, uuid)
+            if channel:
+                break
     if not channel:
         raise SonyError("not_sony")
     s = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM,
@@ -277,6 +301,7 @@ def _open(address: str) -> _Session:
     except (OSError, SonyError):
         s.close()
         raise SonyError("connect_failed")
+    _channels[address] = channel
     return session
 
 

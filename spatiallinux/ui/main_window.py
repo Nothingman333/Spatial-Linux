@@ -187,6 +187,7 @@ class BylineLink(QLabel):
 class _Relay(QObject):
     """Carries a background thread's result back to the window's thread."""
     done = pyqtSignal(object)
+    progress = pyqtSignal(object)
 
 
 class InfoButton(GlobeButton):
@@ -525,7 +526,9 @@ class MainWindow(QMainWindow):
         self._sony = None
         self._sony_relay = _Relay(self)
         self._sony_relay.done.connect(self._on_sony_result)
+        self._sony_relay.progress.connect(self._on_sony_progress)
         self._sony_busy = False
+        self._sony_scanned = -1e9
 
         # per-app volumes, in a drop-down panel
         self.mixer_btn = MixerButton()
@@ -845,6 +848,7 @@ class MainWindow(QMainWindow):
         panel.sonyPicked.connect(self._on_sony_picked)
         panel.sonyLevel.connect(self._on_sony_level)
         panel.sonyVoice.connect(self._on_sony_voice)
+        panel.sonyRetry.connect(lambda: self._sony_refresh(force=True))
         panel.open_below(self.hp_btn)
         self._sony_refresh()
 
@@ -865,11 +869,21 @@ class MainWindow(QMainWindow):
             self._sony_relay.done.emit(result)
         threading.Thread(target=run, daemon=True).start()
 
-    def _sony_refresh(self):
+    def _sony_refresh(self, force: bool = False):
         """Find Sony headphones among the Bluetooth outputs and read their
-        mode -- the output in use first."""
+        mode -- the output in use first. Done once: after that the panel
+        shows what is known, and asks again only when told to (Try again),
+        or at most every half minute while none have been found."""
+        import time
         if not sony.available():
             return
+        now = time.monotonic()
+        if not force:
+            if self._sony and self._sony.get("status") != "failed":
+                return
+            if self._sony is None and now - self._sony_scanned < 30.0:
+                return
+        self._sony_scanned = now
         if self._sony:
             self._sony = dict(self._sony, status="reading")
             self._show_sony()
@@ -879,6 +893,11 @@ class MainWindow(QMainWindow):
             devices = sony.find_headphones(engine_mod.host_command)
             devices.sort(key=lambda d: d["name"] != current)
             for dev in devices:
+                # Sony by its name: show the section, turning, right away,
+                # rather than an empty panel while the headphones answer
+                if sony.looks_like_sony(dev["name"]) and not self._sony:
+                    self._sony_relay.progress.emit(
+                        dict(dev, mode=None, status="reading"))
                 try:
                     state = sony.get_state(dev["address"])
                 except sony.SonyError as e:
@@ -929,6 +948,10 @@ class MainWindow(QMainWindow):
                           engine_mod.host_command)
             return dict(dev, status=None)
         self._sony_run(work)
+
+    def _on_sony_progress(self, state):
+        self._sony = state
+        self._show_sony()
 
     def _on_sony_result(self, result):
         self._sony_busy = False
