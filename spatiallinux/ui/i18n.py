@@ -251,6 +251,26 @@ _STRINGS = {
     "hp_choose_hrir":  ("Choose an HRIR file", "HRIR dosyası seç"),
     "hp_change_hrir":  ("Change file…", "Dosyayı değiştir…"),
     "hp_hrir_in_use":  ("File: {name}", "Dosya: {name}"),
+    "sony_title":      ("NOISE CANCELLING", "GÜRÜLTÜ ENGELLEME"),
+    "sony_nc":         ("Noise cancelling", "Gürültü engelleme"),
+    "sony_ambient":    ("Ambient sound", "Ortam sesi"),
+    "sony_off":        ("Off", "Kapalı"),
+    "sony_hint":       ("Your Sony headphones' own setting, as in Sony's app. "
+                        "Ambient sound lets the room in; Off turns both off.",
+                        "Sony kulaklığının kendi ayarı, Sony uygulamasındaki "
+                        "gibi. Ortam sesi dışarıyı içeri alır; Kapalı ikisini "
+                        "de kapatır."),
+    "sony_reading":    ("Reading the headphones…", "Kulaklık okunuyor…"),
+    "sony_applying":   ("Sending to the headphones…", "Kulaklığa gönderiliyor…"),
+    "sony_failed":     ("The headphones did not answer. Check that they are "
+                        "connected, and close Sony's app on your phone if it "
+                        "is connected to them.",
+                        "Kulaklık yanıt vermedi. Bağlı olduğundan emin ol; "
+                        "telefonundaki Sony uygulaması bağlıysa onu kapat."),
+    "sony_no_bluetooth": ("This Python has no Bluetooth support, so the "
+                          "headphones cannot be reached.",
+                          "Bu Python'da Bluetooth desteği yok, kulaklığa "
+                          "ulaşılamıyor."),
     "hp_eq":           ("HEADPHONE CORRECTION", "KULAKLIK DÜZELTME"),
     "hp_eq_hint":      ("Evens out your headphones' own sound. Download the "
                         "ParametricEQ.txt for your model from autoeq.app "

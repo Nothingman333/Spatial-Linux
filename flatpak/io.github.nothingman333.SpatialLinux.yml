@@ -24,6 +24,7 @@ finish-args:
   - --socket=fallback-x11
   - --device=dri
   - --talk-name=org.freedesktop.Flatpak
+  - --allow=bluetooth
   - --filesystem=xdg-data/spatiallinux:create
 modules:
   - name: spatiallinux

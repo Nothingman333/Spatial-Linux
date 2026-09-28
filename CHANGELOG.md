@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.0.0-beta.4
+
+- **Noise cancelling for Sony headphones.** With Sony headphones connected
+  (WH-1000XM5 and relatives), the headphones panel shows their noise
+  cancelling: **Noise cancelling / Ambient sound / Off**, the same setting
+  as in Sony's phone app, read from the headphones when the panel opens.
+  It talks to them directly over Bluetooth, the way the Sony app does,
+  following Gadgetbridge's open implementation of Sony's protocol; nothing
+  to install. Everything happens in the background, so the window never
+  waits on Bluetooth.
+- The Flatpak may now open Bluetooth connections (for the above).
+
 ## v2.0.0-beta.3
 
 - **Own HRIR file: 7-channel files work too.** HeSuVi ships two kinds: 14

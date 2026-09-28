@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
 )
 
 from . import theme
-from .i18n import t
+from .i18n import t, _STRINGS
 from .panels import TOGGLE_WIDTH
 
 STYLES = ("classic", "studio", "living", "cinema", "custom")
@@ -59,11 +59,13 @@ class HeadphonesPanel(QFrame):
     loadEq = pyqtSignal()                 # wants a file dialog
     eqToggled = pyqtSignal(bool)
     eqRemoved = pyqtSignal()
+    sonyPicked = pyqtSignal(str)          # "nc" / "ambient" / "off"
 
     WIDTH = 540
 
     def __init__(self, style: str, head: str, hrir_name: str | None,
-                 eq_name: str | None, eq_on: bool, parent=None):
+                 eq_name: str | None, eq_on: bool, sony: dict | None = None,
+                 parent=None):
         super().__init__(parent, Qt.WindowType.Popup)
         self.setObjectName("mixer")        # the mixer's popup look
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground)
@@ -144,6 +146,23 @@ class HeadphonesPanel(QFrame):
         outer.addLayout(eq_row)
         outer.addWidget(self._hint(t("hp_eq_hint")))
 
+        # -- Sony noise cancelling -----------------------------------------
+        # only once Sony headphones have been found; filled in by the window
+        # from a background thread, see set_sony
+        self.sony_box = QWidget()
+        box = QVBoxLayout(self.sony_box)
+        box.setContentsMargins(0, 4, 0, 0)
+        box.setSpacing(8)
+        self.sony_heading = self._heading(t("sony_title"))
+        box.addWidget(self.sony_heading)
+        self.sony_buttons = self._choices(
+            box, ("nc", "ambient", "off"), None, "sony", self.sonyPicked.emit)
+        self.sony_status = self._hint("")
+        box.addWidget(self.sony_status)
+        box.addWidget(self._hint(t("sony_hint")))
+        outer.addWidget(self.sony_box)
+        self.set_sony(sony)
+
         # -- surround ----------------------------------------------------
         outer.addSpacing(4)
         outer.addWidget(self._heading("5.1 · 7.1"))
@@ -179,7 +198,9 @@ class HeadphonesPanel(QFrame):
             btn.setObjectName("headChoice")
             btn.setCheckable(True)
             btn.setChecked(key == current)
-            btn.setToolTip(t(f"{prefix}_{key}_tip"))
+            tip = f"{prefix}_{key}_tip"
+            if tip in _STRINGS:
+                btn.setToolTip(t(tip))
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.clicked.connect(lambda _c, k=key: on_pick(k))
             btn.ensurePolished()
@@ -192,6 +213,20 @@ class HeadphonesPanel(QFrame):
             buttons[key] = btn
         outer.addLayout(row)
         return buttons
+
+    def set_sony(self, sony: dict | None):
+        """{name, mode, status} of the Sony headphones, or None to hide the
+        section (none found, or not ones that take these commands)."""
+        self.sony_box.setVisible(bool(sony))
+        if sony:
+            self.sony_heading.setText(f"{t('sony_title')} · {sony['name']}")
+            for key, btn in self.sony_buttons.items():
+                btn.setChecked(key == sony.get("mode"))
+                btn.setEnabled(sony.get("status") not in ("reading", "applying"))
+            status = sony.get("status")
+            self.sony_status.setText(t(f"sony_{status}") if status else "")
+            self.sony_status.setVisible(bool(status))
+        self.adjustSize()
 
     def _pick_style(self, key: str):
         for k, btn in self.style_buttons.items():

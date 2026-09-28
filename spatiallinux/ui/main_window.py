@@ -2,15 +2,19 @@ import json
 import math
 import os
 import shutil
+import threading
 from dataclasses import asdict
 
-from PyQt6.QtCore import Qt, QTimer, QVariantAnimation, QEasingCurve
+from PyQt6.QtCore import (
+    Qt, QTimer, QVariantAnimation, QEasingCurve, QObject, pyqtSignal,
+)
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
     QSlider, QPushButton, QComboBox, QInputDialog, QMessageBox, QFileDialog,
 )
 
 from .. import presets, __version__
+from .. import sony
 from .. import engine as engine_mod
 from ..engine import SpatialEngine, EQ_BANDS
 from PyQt6.QtGui import (
@@ -178,6 +182,11 @@ class BylineLink(QLabel):
         p.setBrush(fill)
         p.drawPath(path)
         p.end()
+
+
+class _Relay(QObject):
+    """Carries a background thread's result back to the window's thread."""
+    done = pyqtSignal(object)
 
 
 class InfoButton(GlobeButton):
@@ -511,6 +520,12 @@ class MainWindow(QMainWindow):
         self.hp_btn.clicked.connect(self._open_headphones)
         lay.addWidget(self.hp_btn, 0, Qt.AlignmentFlag.AlignVCenter)
         self._hp_panel = None
+        # Sony noise cancelling: the headphones found, their mode, and what
+        # is going on ("reading", "applying", "failed", ...), or None
+        self._sony = None
+        self._sony_relay = _Relay(self)
+        self._sony_relay.done.connect(self._on_sony_result)
+        self._sony_busy = False
 
         # per-app volumes, in a drop-down panel
         self.mixer_btn = MixerButton()
@@ -819,14 +834,83 @@ class MainWindow(QMainWindow):
         panel = self._hp_panel = HeadphonesPanel(
             self.engine.style, self.engine.head,
             self.settings.get("custom_hrir_name"),
-            eq.get("name") if eq else None, self.engine.hp_eq_on, self)
+            eq.get("name") if eq else None, self.engine.hp_eq_on,
+            self._sony, self)
         panel.stylePicked.connect(self._on_style_picked)
         panel.headPicked.connect(self._on_head_picked)
         panel.chooseHrir.connect(self._choose_hrir)
         panel.loadEq.connect(self._load_hp_eq)
         panel.eqToggled.connect(self._on_hp_eq_toggled)
         panel.eqRemoved.connect(self._remove_hp_eq)
+        panel.sonyPicked.connect(self._on_sony_picked)
         panel.open_below(self.hp_btn)
+        self._sony_refresh()
+
+    # -- Sony noise cancelling (see sony.py) ------------------------------------
+    def _sony_run(self, work):
+        """Run `work()` off the window's thread; its return value (a new
+        self._sony) comes back through _on_sony_result."""
+        if self._sony_busy:
+            return
+        self._sony_busy = True
+
+        def run():
+            try:
+                result = work()
+            except Exception:
+                result = (dict(self._sony, status="failed")
+                          if self._sony else None)
+            self._sony_relay.done.emit(result)
+        threading.Thread(target=run, daemon=True).start()
+
+    def _sony_refresh(self):
+        """Find Sony headphones among the Bluetooth outputs and read their
+        mode -- the output in use first."""
+        if not sony.available():
+            return
+        if self._sony:
+            self._sony = dict(self._sony, status="reading")
+            self._show_sony()
+        current = self.engine.current_output_label() or ""
+
+        def work():
+            devices = sony.find_headphones(engine_mod.host_command)
+            devices.sort(key=lambda d: d["name"] != current)
+            for dev in devices:
+                try:
+                    mode = sony.get_mode(dev["address"])
+                except sony.SonyError as e:
+                    if str(e) == "not_sony":
+                        continue
+                    return dict(dev, mode=None, status="failed")
+                return dict(dev, mode=mode, status=None)
+            return None
+        self._sony_run(work)
+
+    def _on_sony_picked(self, mode: str):
+        if not self._sony:
+            return
+        dev = self._sony
+        self._sony = dict(dev, status="applying")
+        self._show_sony()
+
+        def work():
+            try:
+                sony.set_mode(dev["address"], mode)
+            except sony.SonyError:
+                return dict(dev, status="failed")
+            return dict(dev, mode=mode, status=None)
+        self._sony_run(work)
+
+    def _on_sony_result(self, result):
+        self._sony_busy = False
+        self._sony = result
+        self._show_sony()
+
+    def _show_sony(self):
+        panel = self._hp_panel
+        if panel is not None and panel.isVisible():
+            panel.set_sony(self._sony)
 
     def _on_style_picked(self, style: str):
         if style == self.engine.style:

@@ -99,6 +99,35 @@ were recorded from commercial virtualisers and carry no licence, so the
 listener brings their own. The file is copied into the data folder, where
 the (host's) PipeWire can read it.
 
+### Sony noise cancelling
+
+Sony's headphones take commands over a Bluetooth RFCOMM channel of their
+own, the one their phone app uses. The protocol is not published; Spatial
+Linux follows how Gadgetbridge, the open-source Android companion, talks to
+them ([`sony.py`](../spatiallinux/sony.py)), with only Python's own `socket`
+module:
+
+- **Finding the headphones.** The Bluetooth outputs PipeWire knows
+  (`api.bluez5.address`), the one in use first.
+- **Finding the channel.** It is not fixed, so the headphones' SDP server
+  (L2CAP PSM 1) is asked where the Sony service is (UUID `956C7B26-…`, or
+  `96CC203E-…` on older models): one ServiceSearchAttribute request for the
+  protocol descriptor list, parsed by hand rather than depending on
+  libbluetooth.
+- **Talking.** Frames are `0x3E`, escaped `[type, sequence, length,
+  payload, checksum]`, `0x3C`; every command is ACKed with the next sequence
+  number, both ways. An init command starts the session, and the length of
+  its reply tells protocol v1 (WH-1000XM3/XM4) from v2 (WH-1000XM5,
+  WF-1000XM4/XM5, LinkBuds).
+- **The setting.** Ambient sound control, `0x68` (set) / `0x66` (get): on
+  or off, then noise cancelling or ambient sound, focus on voice, and the
+  ambient level (20 of 20).
+
+It runs in a background thread; the panel shows the mode read from the
+headphones and what is happening. Checked against a simulated headset and
+the byte sequences known from Gadgetbridge (the init frame is
+`3e 0c 00 00 00 00 02 00 00 0e 3c`), not yet against every model.
+
 ### Headphone correction
 
 An AutoEQ `ParametricEQ.txt` (the format Equalizer APO reads too) evens out
