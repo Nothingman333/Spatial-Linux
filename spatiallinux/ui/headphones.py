@@ -88,6 +88,9 @@ class HeadphonesPanel(GlassPopup):
     eqRemoved = pyqtSignal()
     sonyDevice = pyqtSignal(str)          # address, or "" for automatic
     sonyRetry = pyqtSignal()
+    sonyPicked = pyqtSignal(str)          # "nc" / "ambient" / "off"
+    sonyLevel = pyqtSignal(int)           # ambient strength, on release
+    sonyVoice = pyqtSignal(bool)          # Conversation
 
     WIDTH = 540
 
@@ -177,6 +180,16 @@ class HeadphonesPanel(GlassPopup):
         # their own, or picked here when they are not
         outer.addSpacing(4)
         outer.addWidget(self._heading(t("hp_nc")))
+        # the modes, level and Conversation: shown once the headphones
+        # have answered
+        from .noise import NoiseCard
+        self.nc_card = NoiseCard()
+        self.nc_card.setFixedSize(self.WIDTH - 40, NoiseCard.HEIGHT)
+        self.nc_card.picked.connect(self.sonyPicked.emit)
+        self.nc_card.level.connect(self.sonyLevel.emit)
+        self.nc_card.voice.connect(self.sonyVoice.emit)
+        self.nc_card.retry.connect(self.sonyRetry.emit)
+        outer.addWidget(self.nc_card)
         nc_row = QHBoxLayout()
         nc_row.setSpacing(6)
         self.nc_combo = QComboBox()
@@ -216,14 +229,19 @@ class HeadphonesPanel(GlassPopup):
 
         state = nc.get("state") or {}
         searching = bool(nc.get("searching"))
+        self.nc_card.set_sony(state if state.get("confirmed") else None)
         status = state.get("status")
         name = state.get("name") or ""
         if not nc.get("available", True):
             text = t("sony_no_bluetooth")
-        elif searching or status in ("reading", "applying"):
+        elif status == "applying":
+            text = t("sony_applying")
+        elif searching or status == "reading":
             text = t("hp_nc_searching")
         elif state and status is None:
             text = t("hp_nc_found").format(name=name)
+            if not state.get("mode"):
+                text += " " + t("hp_nc_no_mode")
         elif status == "not_sony":
             text = t("hp_nc_not_sony").format(name=name)
         elif status == "failed":

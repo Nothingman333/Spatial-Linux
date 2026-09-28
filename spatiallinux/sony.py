@@ -46,6 +46,8 @@ AMBIENT_LEVEL = 20
 HEADER, TRAILER, ESCAPE = 0x3E, 0x3C, 0x3D
 T_ACK, T_COMMAND = 0x01, 0x0C
 TIMEOUT = 6.0
+# how long to wait for the answer to "which mode?" (see get_state)
+READ_TIMEOUT = 2.0
 # The channel a pair of headphones answered on, so it is looked up once.
 _channels: dict[str, int] = {}
 
@@ -382,14 +384,28 @@ def parse_state(version: int, payload: bytes) -> dict:
 
 
 def get_state(address: str) -> dict:
-    """{mode, level, voice} as the headphones report them ({} if they use
-    the older protocol, whose reply is not known)."""
+    """{mode, level, voice} as the headphones report them, or {} when they
+    do not say. Only a failed connection is an error: some (a WH-1000XM5
+    among them) accept the session and every setting but never answer the
+    question, and they can still be set -- as up to 2.0 beta 7, where a
+    failed read left the mode buttons working."""
     session = _open(address)
     try:
         if session.version != 2:
             return {}
-        reply = session.request(bytes([0x66, 0x15]), want=0x67)
-        return parse_state(2, reply or b"")
+        # the question in both forms the v2 headphones use, briefly each
+        session.sock.settimeout(READ_TIMEOUT)
+        for kind in (0x15, 0x17):
+            try:
+                reply = session.request(bytes([0x66, kind]), want=0x67)
+            except (TimeoutError, socket.timeout):
+                log(f"{address}: no answer to the mode question 0x{kind:02x}")
+                continue
+            state = parse_state(2, reply or b"")
+            if state.get("mode"):
+                return state
+        log(f"{address}: the mode is not reported; it can still be set")
+        return {}
     except (OSError, SonyError) as e:
         log(f"{address}: reading the mode failed: {e!r}")
         raise SonyError("connect_failed", f"read: {str(e) or type(e).__name__}")

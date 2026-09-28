@@ -67,7 +67,12 @@ class NoiseCard(QFrame):
         lay.addWidget(self.strip)
 
         # the line under the modes: one page per situation
-        self.pages = QStackedLayout()
+        # (made on its holder straight away: pages added to a stack with no
+        # widget yet each became a window of their own for a moment, which
+        # closed the drop-down it sits in)
+        holder = QWidget()
+        holder.setFixedHeight(24)
+        self.pages = QStackedLayout(holder)
         self.page_blank = QWidget()
         self.pages.addWidget(self.page_blank)
 
@@ -118,9 +123,6 @@ class NoiseCard(QFrame):
         self.retry_btn.clicked.connect(self.retry.emit)
         row.addWidget(self.retry_btn)
         self.pages.addWidget(self.page_failed)
-        holder = QWidget()
-        holder.setFixedHeight(24)
-        holder.setLayout(self.pages)
         lay.addWidget(holder)
 
         # fading the card in and the line under the modes across

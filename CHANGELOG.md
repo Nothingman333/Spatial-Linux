@@ -1,5 +1,21 @@
 # Changelog
 
+## v2.0.0-beta.11
+
+- **Noise cancelling works again with the WH-1000XM5.** The log showed
+  why: the headphones accept the connection and every setting, but never
+  answer the question "which mode are you in?" -- every attempt waited six
+  seconds and gave up. Up to beta.7 that failed read still left the mode
+  buttons working; from beta.8 the controls waited for an answer that
+  never came. Now the question is asked briefly (both forms the headphones
+  use), and when there is no answer the controls simply show no mode
+  picked until you choose one.
+- **Noise cancelling is back in the headphones panel**, as in beta.7: the
+  modes, ambient level and Conversation, with the choice of headphones and
+  what is going on under them. The header no longer holds it.
+- **Fixed:** the noise card briefly created windows of its own while it
+  was being built, which could close the drop-down it sat in.
+
 ## v2.0.0-beta.10
 
 - **Noise cancelling only shows for headphones it can control.** The card

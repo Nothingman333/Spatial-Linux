@@ -125,8 +125,12 @@ module:
 
 Every attempt is written to `~/.local/share/spatiallinux/noise-cancelling.log`
 (the devices seen, the channel, and what the system reported), for when
-the headphones cannot be reached. The card only shows headphones that have
-answered; the headphones panel lets them be picked by hand.
+the headphones cannot be reached. The controls, in the headphones panel,
+show once the headphones have answered (they can also be picked by hand).
+Some headphones -- the WH-1000XM5 tested here among them -- accept the
+session and every setting but never answer the "which mode?" question
+(`0x66`), so it is asked briefly, in both forms (`0x15`, `0x17`), and no
+answer just means no mode is shown as picked.
 
 It runs in a background thread, once when the app starts (and, while no
 headphones have been found, again when the window comes back to the front,
