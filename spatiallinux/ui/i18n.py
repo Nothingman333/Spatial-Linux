@@ -228,15 +228,18 @@ _STRINGS = {
                           "Sinemada sanal hoparlörler: uzakta, büyük ve saran "
                           "bir ses — filmler ve oyunlar için."),
     "style_custom":    ("Own file", "Kendi dosyan"),
-    "style_custom_tip": ("Your own 14-channel HRIR file in the HeSuVi layout; "
-                         "every channel goes through it",
-                         "HeSuVi düzeninde kendi 14 kanallı HRIR dosyan; tüm "
-                         "kanallar ondan geçer"),
-    "style_custom_hint": ("Every channel goes through your own HRIR file "
-                          "(14 channels, HeSuVi layout). The intensity "
-                          "blends it with the plain sound.",
-                          "Tüm kanallar kendi HRIR dosyandan geçer (14 kanal, "
-                          "HeSuVi düzeni). Yoğunluk onu düz sesle karıştırır."),
+    "style_custom_tip": ("Your own HRIR file (HeSuVi layout, 14 or 7 "
+                         "channels); picking this the first time asks for it",
+                         "Kendi HRIR dosyan (HeSuVi düzeni, 14 ya da 7 "
+                         "kanal); ilk seçişte dosyayı sorar"),
+    "style_custom_hint": ("Instead of Spatial Linux's own 3D, every channel "
+                          "goes through your own HRIR file (a HeSuVi .wav, "
+                          "14 or 7 channels). The intensity blends it with "
+                          "the plain sound.",
+                          "Spatial Linux'un kendi 3D'si yerine tüm kanallar "
+                          "kendi HRIR dosyandan geçer (HeSuVi .wav dosyası, "
+                          "14 ya da 7 kanal). Yoğunluk onu düz sesle "
+                          "karıştırır."),
     "head_kemar":      ("KEMAR", "KEMAR"),
     "head_kemar_tip":  ("MIT KEMAR dummy head (the original sound)",
                         "MIT KEMAR yapay kafa (orijinal ses)"),
@@ -245,8 +248,9 @@ _STRINGS = {
                         "York)",
                         "Neumann KU 100 yapay kafa, SADIE II (York "
                         "Üniversitesi)"),
-    "hp_choose_hrir":  ("Choose HRIR file…", "HRIR dosyası seç…"),
-    "hp_no_hrir":      ("No file chosen", "Dosya seçilmedi"),
+    "hp_choose_hrir":  ("Choose an HRIR file", "HRIR dosyası seç"),
+    "hp_change_hrir":  ("Change file…", "Dosyayı değiştir…"),
+    "hp_hrir_in_use":  ("File: {name}", "Dosya: {name}"),
     "hp_eq":           ("HEADPHONE CORRECTION", "KULAKLIK DÜZELTME"),
     "hp_eq_hint":      ("Evens out your headphones' own sound. Download the "
                         "ParametricEQ.txt for your model from autoeq.app "
@@ -263,10 +267,12 @@ _STRINGS = {
                         "5.1 ya da 7.1 çalan oyun ve filmler çevrenden "
                         "duyulur: her kanal kendi yerinden. Stereo "
                         "değişmez."),
-    "hrir_bad":        ("This is not a 14-channel HRIR file in the HeSuVi "
-                        "layout. It has {n} channels.",
-                        "Bu, HeSuVi düzeninde 14 kanallı bir HRIR dosyası "
-                        "değil. {n} kanalı var."),
+    "hrir_bad":        ("This WAV file has {n} channels. An HRIR file in the "
+                        "HeSuVi layout has 14 (or 7, for a symmetric head) — "
+                        "the files in HeSuVi's hrir folder.",
+                        "Bu WAV dosyasının {n} kanalı var. HeSuVi düzenindeki "
+                        "bir HRIR dosyasının 14 (simetrik kafalarda 7) kanalı "
+                        "olur — HeSuVi'nin hrir klasöründeki dosyalar."),
     "hrir_unreadable": ("This file could not be read as a WAV file.",
                         "Bu dosya WAV dosyası olarak okunamadı."),
     "autoeq_bad":      ("No filters were found in this file. Choose the "

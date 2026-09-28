@@ -869,7 +869,7 @@ class MainWindow(QMainWindow):
         except (OSError, ValueError):
             QMessageBox.warning(self, "Spatial Linux", t("hrir_unreadable"))
             return
-        if channels != 14:
+        if channels not in engine_mod.HRIR_CHANNEL_COUNTS:
             QMessageBox.warning(self, "Spatial Linux",
                                 t("hrir_bad").format(n=channels))
             return

@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.0.0-beta.3
+
+- **Own HRIR file: 7-channel files work too.** HeSuVi ships two kinds: 14
+  channels, and 7 channels for symmetric heads (one side stored, the other
+  its mirror image). Only the 14-channel kind was accepted, so many of
+  HeSuVi's files were refused with "it has 7 channels". Both load now.
+- **Clearer headphones panel.** "Own file" is one choice: picking it the
+  first time asks for the file. The file in use, with a "Change file…"
+  button, shows only while it is the choice; the separate "Choose HRIR
+  file" row, which looked like a second, different option, is gone. The
+  message for a wrong file now says what the right one looks like.
+
 ## v2.0.0-beta.2
 
 - **Speakers in a room.** A new kind of 3D, chosen in the headphones panel:

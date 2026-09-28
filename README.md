@@ -44,7 +44,7 @@ what kind of app this is.</sub>
 | **Speakers in a room** *(2.0 beta)* | A second kind of 3D: instead of headphones you hear a pair of speakers (or a whole 7.1 set) in front of you, in a **Studio**, a **Living room** or a **Cinema**. Each speaker, and each reflection off the walls, floor and ceiling, comes from its own direction through a measured head, followed by the room's own reverb: the way Dolby Atmos for Headphones and similar virtualisers make sound come from outside your head. Tuned to sound neutral and to be exactly as loud as the classic 3D. |
 | **5.1 / 7.1 surround** *(2.0 beta)* | Games and films that play surround are heard from all around you: centre, sides and back each from their own place, instead of being folded into stereo first. Stereo sounds exactly as before. |
 | **3D head** *(2.0 beta)* | Pick whose ears the 3D sound is measured with: the MIT KEMAR head or a Neumann KU 100 (SADIE II). Heads differ like ears do; choose the one that puts the sound most clearly in front of you. |
-| **Your own HRIR** *(2.0 beta)* | Load a 14-channel HRIR file in the HeSuVi layout and every channel runs through it. |
+| **Your own HRIR** *(2.0 beta)* | Load an HRIR file in the HeSuVi layout (14 channels, or 7 for a symmetric head) and every channel runs through it. |
 | **Headphone correction** *(2.0 beta)* | Load the AutoEQ `ParametricEQ.txt` for your headphone model (from [autoeq.app](https://autoeq.app)) to even out its own sound. On / Off at any time. |
 | **Ambience** | Convolution reverb that builds a room around the music, with its own **Treble** control. |
 | **Fidelity** | Lifts the deepest lows and the finest highs, the ranges the ear hears least. |

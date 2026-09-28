@@ -223,6 +223,12 @@ LFE_CHANNEL_CUTOFF = 120.0
 # sink-virtual-surround-7.1-hesuvi.conf.
 HESUVI_CHANNELS = {"FL": (0, 1), "FR": (8, 7), "FC": (6, 13), "LFE": (6, 13),
                    "SL": (2, 3), "SR": (10, 9), "RL": (4, 5), "RR": (12, 11)}
+# HeSuVi's 7-channel files are for symmetric heads: they hold the
+# left-hand speakers and the centre (FL-L, FL-R, SL-L, SL-R, BL-L, BL-R,
+# FC-L), and the right-hand side is their mirror image.
+HESUVI_CHANNELS_7 = {"FL": (0, 1), "FR": (1, 0), "FC": (6, 6), "LFE": (6, 6),
+                     "SL": (2, 3), "SR": (3, 2), "RL": (4, 5), "RR": (5, 4)}
+HRIR_CHANNEL_COUNTS = (7, 14)
 HESUVI_GAIN = {"FC": 2.0}
 CUSTOM_HRIR_PATH = os.path.join(RUNTIME_DIR, "custom_hrir.wav")
 
@@ -925,10 +931,15 @@ class SpatialEngine:
         out the HeSuVi way -- the same mapping as PipeWire's own
         sink-virtual-surround-7.1-hesuvi.conf example."""
         path = self.custom_hrir
+        try:
+            count = wav_channels(path)[0]
+        except (OSError, ValueError):
+            count = 14
+        layout = HESUVI_CHANNELS_7 if count == 7 else HESUVI_CHANNELS
         for ch in CHANNELS:
             nodes.append({"type": "builtin", "name": f"hv{ch}", "label": "mixer"})
         for i, pos in enumerate(INPUT_POSITIONS):
-            for ear, channel in zip(CHANNELS, HESUVI_CHANNELS[pos]):
+            for ear, channel in zip(CHANNELS, layout[pos]):
                 name = f"h{pos}{ear}"
                 nodes.append({"type": "builtin", "name": name, "label": "convolver",
                               "config": {"filename": path, "channel": channel,

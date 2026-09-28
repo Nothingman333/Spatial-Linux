@@ -84,17 +84,22 @@ class HeadphonesPanel(QFrame):
         self.style_hint = self._hint(t(f"style_{style}_hint"))
         outer.addWidget(self.style_hint)
 
-        file_row = QHBoxLayout()
-        self.hrir_label = QLabel(hrir_name or t("hp_no_hrir"))
-        self.hrir_label.setObjectName("subtitle")
-        file_row.addWidget(self.hrir_label, 1)
-        choose = QPushButton(t("hp_choose_hrir"))
-        choose.setObjectName("smallButton")
-        choose.setCursor(Qt.CursorShape.PointingHandCursor)
-        choose.clicked.connect(self._choose_hrir)
-        self._keep_width(choose)
-        file_row.addWidget(choose)
-        outer.addLayout(file_row)
+        # "Own file" is one choice: picking it the first time asks for the
+        # file; the file in use, and a way to change it, show only while it
+        # is the choice
+        self.hrir_name = hrir_name
+        if style == "custom" and hrir_name:
+            file_row = QHBoxLayout()
+            name = QLabel(t("hp_hrir_in_use").format(name=hrir_name))
+            name.setObjectName("mixerApp")
+            file_row.addWidget(name, 1)
+            choose = QPushButton(t("hp_change_hrir"))
+            choose.setObjectName("smallButton")
+            choose.setCursor(Qt.CursorShape.PointingHandCursor)
+            choose.clicked.connect(self._choose_hrir)
+            self._keep_width(choose)
+            file_row.addWidget(choose)
+            outer.addLayout(file_row)
 
         # -- 3D head ------------------------------------------------------
         outer.addSpacing(4)
@@ -192,7 +197,7 @@ class HeadphonesPanel(QFrame):
         for k, btn in self.style_buttons.items():
             btn.setChecked(k == key)
         self.hide()
-        if key == "custom" and self.hrir_label.text() == t("hp_no_hrir"):
+        if key == "custom" and not self.hrir_name:
             self.chooseHrir.emit()
         else:
             self.stylePicked.emit(key)

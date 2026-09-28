@@ -87,11 +87,13 @@ one and 13 / 17 dB quieter, as a real head does.
 
 ### Your own HRIR file
 
-"Own file" runs every channel through a 14-channel HRIR file in the
-**HeSuVi** layout instead of Spatial Linux's own 3D stage — the same mapping
-as PipeWire's own `sink-virtual-surround-7.1-hesuvi.conf` (the centre at ×2
-because HeSuVi splits it in two, the LFE on the centre's responses at half
-that). The 3D intensity crossfades between the plain downmix and the
+"Own file" runs every channel through an HRIR file in the **HeSuVi**
+layout instead of Spatial Linux's own 3D stage. A 14-channel file uses the
+same mapping as PipeWire's own `sink-virtual-surround-7.1-hesuvi.conf` (the
+centre at ×2 because HeSuVi splits it in two, the LFE on the centre's
+responses at half that). A 7-channel file is HeSuVi's symmetric kind: it
+holds FL-L, FL-R, SL-L, SL-R, BL-L, BL-R and FC-L, and the right-hand
+speakers use the left-hand ones with the ears swapped. The 3D intensity crossfades between the plain downmix and the
 rendered sound. Spatial Linux ships no such files: many of the popular ones
 were recorded from commercial virtualisers and carry no licence, so the
 listener brings their own. The file is copied into the data folder, where
