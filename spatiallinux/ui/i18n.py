@@ -238,6 +238,7 @@ _STRINGS = {
     "sony_off":        ("Off", "Kapalı"),
     "sony_level": ("Level", "Seviye"),
     "sony_retry": ("Try again", "Tekrar dene"),
+    "sony_failed_short": ("Couldn't reach the headphones", "Kulaklığa ulaşılamadı"),
     "sony_voice": ("Conversation", "Sohbet"),
     "sony_voice_tip": ("Brings voices forward", "Konuşmaları öne çıkarır"),
     "sony_nc_note": ("The headphones set its strength themselves.", "Gücünü kulaklık kendisi ayarlar."),

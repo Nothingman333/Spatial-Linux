@@ -91,24 +91,24 @@ QLabel#version {{
     font-size: 11px;
     padding-bottom: 7px;
 }}
-QFrame#chip {{
-    background: rgba(9, 8, 13, 0.72);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 11px;
+QFrame#chip, QFrame#glass {{
+    /* the header frosts the picture behind these (see hero.py); this is
+       only the tint and the rim on top */
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 rgba(255, 255, 255, 0.10), stop:1 rgba(255, 255, 255, 0.04));
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-top-color: rgba(255, 255, 255, 0.24);
+    border-radius: 17px;
 }}
 QLabel#chipLabel {{
-    color: rgba(255, 255, 255, 0.78);
+    color: rgba(255, 255, 255, 0.70);
     font-size: 12px;
+    font-weight: 500;
 }}
 QLabel#chipValue {{
     color: white;
     font-size: 12px;
     font-weight: 600;
-}}
-QFrame#glass {{
-    background: {GLASS};
-    border: 1px solid rgba(255, 255, 255, 0.10);
-    border-radius: 17px;
 }}
 QLabel#glassLabel {{
     color: rgba(255, 255, 255, 0.72);
@@ -120,51 +120,53 @@ QLabel#glassValue {{
     font-size: 12px;
     font-weight: 600;
 }}
-QPushButton#tab {{
-    background: transparent;
-    color: rgba(255, 255, 255, 0.72);
-    border: none;
-    border-radius: 14px;
-    padding: 8px 14px;
-    font-size: 13px;
-    font-weight: 500;
+QFrame#glassCard {{
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 rgba(255, 255, 255, 0.11), stop:1 rgba(255, 255, 255, 0.035));
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    border-top-color: rgba(255, 255, 255, 0.26);
+    border-radius: 18px;
 }}
-QPushButton#tab:hover {{
-    color: white;
-    background: rgba(255, 255, 255, 0.06);
-}}
-QPushButton#tab:checked {{
-    background: {GLASS_HOVER};
-    color: white;
+QLabel#cardCaption {{
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 10px;
     font-weight: 600;
+    letter-spacing: 0.8px;
 }}
-QPushButton#powerPill {{
-    background: {GLASS};
-    border: 1px solid rgba(255, 255, 255, 0.10);
-    border-radius: 19px;
-    color: white;
-    font-size: 13px;
+QLabel#cardDevice {{
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 11px;
+}}
+QLabel#cardNote {{
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 11px;
+    padding-left: 2px;
+}}
+QPushButton#cardToggle {{
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 12px;
+    padding: 0 12px;
+    font-size: 11px;
     font-weight: 600;
-    padding: 0 18px 0 40px;
-    text-align: left;
+    color: white;
 }}
-QPushButton#powerPill:hover {{
-    background: {GLASS_HOVER};
+QPushButton#cardToggle:hover {{
+    background: rgba(255, 255, 255, 0.16);
 }}
-QPushButton#powerPill:checked {{
+QPushButton#cardToggle:checked {{
     background: {CHOSEN};
     color: {CHOSEN_TEXT};
     border: 1px solid white;
 }}
-QPushButton#globe {{
-    background: {GLASS};
-    border: 1px solid rgba(255, 255, 255, 0.10);
-    border-radius: 17px;
-    font-size: 15px;
-    padding: 0;
+QPushButton#choice {{
+    font-size: 12px;
 }}
-QPushButton#globe:hover {{
-    background: {GLASS_HOVER};
+QPushButton#tab {{
+    font-size: 13px;
+}}
+QPushButton#powerPill {{
+    font-size: 13px;
 }}
 
 /* -- cards --------------------------------------------------------------- */
@@ -290,10 +292,26 @@ QComboBox QAbstractItemView {{
 }}
 
 /* -- drop-down panels (app volumes, headphones) ----------------------------- */
-QFrame#mixer {{
-    background: {PANEL};
-    border: 1px solid {EDGE_STRONG};
-    border-radius: 20px;
+/* frosted glass, painted by GlassPopup (controls.py) */
+QFrame#glassPopup, QWidget#glassBody {{
+    background: transparent;
+    border: none;
+}}
+QFrame#glassPopup QPushButton#smallButton,
+QFrame#glassPopup QPushButton#rowToggle {{
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}}
+QFrame#glassPopup QPushButton#smallButton:hover,
+QFrame#glassPopup QPushButton#rowToggle:hover {{
+    background: rgba(255, 255, 255, 0.16);
+}}
+QFrame#glassPopup QPushButton#rowToggle:checked {{
+    background: {CHOSEN};
+    border: 1px solid {CHOSEN};
+}}
+QFrame#glassPopup QPushButton#mute {{
+    background: rgba(255, 255, 255, 0.08);
 }}
 QScrollArea#mixerScroll, QScrollArea#mixerScroll > QWidget > QWidget {{
     background: transparent;

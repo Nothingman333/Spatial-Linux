@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
 
 from . import theme
 from .i18n import t
+from .controls import GlassIconButton, GlassPopup
 from ..engine import parse_streams, host_command
 
 
@@ -66,31 +67,20 @@ class MuteButton(QPushButton):
         p.end()
 
 
-class MixerButton(QPushButton):
+class MixerButton(GlassIconButton):
     """Header button that opens the panel: three little faders."""
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setObjectName("globe")          # same round look as the globe
-        self.setFixedSize(34, 34)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-
-    def paintEvent(self, ev):
-        super().paintEvent(ev)
-        p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+    def draw_icon(self, p: QPainter, cx: float, cy: float):
         pen = QPen(QColor(theme.TEXT))
         pen.setWidthF(1.3)
         pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         p.setPen(pen)
-        cx, cy = self.width() / 2, self.height() / 2
         for dx, knob in ((-5, 3), (0, -3), (5, 1)):
             x = cx + dx
             p.drawLine(QPointF(x, cy - 7), QPointF(x, cy + 7))
             p.setBrush(QColor(theme.TEXT))
             p.drawEllipse(QPointF(x, cy + knob), 1.8, 1.8)
             p.setBrush(Qt.BrushStyle.NoBrush)
-        p.end()
 
 
 class StreamRow(QWidget):
@@ -157,7 +147,7 @@ class StreamRow(QWidget):
         self.engine.set_stream_mute(self.node, on)
 
 
-class MixerPanel(QFrame):
+class MixerPanel(GlassPopup):
     """The drop-down itself. A Qt popup, so a click anywhere else closes it."""
 
     REFRESH_MS = 1500
@@ -165,15 +155,13 @@ class MixerPanel(QFrame):
     ROW_HEIGHT = 62
 
     def __init__(self, engine, parent=None):
-        super().__init__(parent, Qt.WindowType.Popup)
-        self.setObjectName("mixer")
-        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground)
+        super().__init__(parent)
         self.engine = engine
         self.setFixedWidth(self.WIDTH)
         self._rows: dict[int, StreamRow] = {}
 
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(16, 12, 16, 14)
+        outer = QVBoxLayout(self.body)
+        outer.setContentsMargins(18, 14, 18, 16)
         outer.setSpacing(6)
         self.title = QLabel(t("mixer_title"))
         self.title.setObjectName("section")
@@ -198,22 +186,23 @@ class MixerPanel(QFrame):
         self.note.setWordWrap(True)
         outer.addWidget(self.note)
 
-        self._timer = QTimer(self)
-        self._timer.setInterval(self.REFRESH_MS)
-        self._timer.timeout.connect(self.refresh)
+        # (GlassPopup has a _timer of its own, for the frosted backdrop)
+        self._refresh = QTimer(self)
+        self._refresh.setInterval(self.REFRESH_MS)
+        self._refresh.timeout.connect(self.refresh)
         self._proc = None
 
     # -- showing -------------------------------------------------------------
     def open_below(self, anchor: QWidget):
         self.title.setText(t("mixer_title"))
-        pos = anchor.mapToGlobal(QPoint(anchor.width(), anchor.height() + 6))
+        pos = anchor.mapToGlobal(QPoint(anchor.width(), anchor.height() + 8))
         self.move(pos.x() - self.WIDTH, pos.y())
         self.refresh()
-        self._timer.start()
+        self._refresh.start()
         self.show()
 
     def hideEvent(self, ev):
-        self._timer.stop()
+        self._refresh.stop()
         super().hideEvent(ev)
 
     # -- reading the stream list, without blocking ----------------------------

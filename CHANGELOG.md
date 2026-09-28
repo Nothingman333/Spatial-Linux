@@ -1,5 +1,36 @@
 # Changelog
 
+## v2.0.0-beta.8
+
+**Motion and glass.** The same app, livelier and lighter to the eye.
+
+- **Noise cancelling is on the main window**, in a glass card in the
+  header, next to the name: the three modes, and under them the ambient
+  level and Conversation, a note for noise cancelling, or "Try again" if
+  the headphones could not be reached. It appears once the headphones are
+  found (looked up once when the app starts); the headphones panel no
+  longer has it.
+- **The header picture flows:** far and near streaks drifting at their
+  own pace, sparks falling through them, a swaying bloom and a band of
+  light sweeping across now and then; livelier while Spatial Linux is on.
+- **Real frosted glass:** the round buttons, the chips, the volume and
+  pre-amp pills, the tabs, the power button and the noise card show the
+  moving picture behind them, blurred. The drop-downs (headphones, app
+  volumes) are frosted glass over the window, and see-through.
+- **Options look like options:** every mode tab and choice is a glass pill
+  of its own, and the chosen one is a white thumb that slides over when you
+  pick another. Also in the headphones panel.
+- **More motion:** the power button floods white from its symbol when
+  switched on and drains back when off; round buttons and pills ease in on
+  hover; drop-downs grow and fade in; a mode panel fades up as it opens;
+  the noise card fades in, and its line changes with a fade.
+- **Less on the header:** no date, no "3D sound enhancement", no
+  "Running" or "3D Surround 60%" chips -- the tabs and the power button
+  already say it. The output chip's dot is green while Spatial Linux is on.
+- **Fixed:** the "SPATIAL LINUX" wordmark in the introduction had holes
+  and seams in some letters (Inter's overlapping outlines drawn with the
+  wrong fill rule); the 3D sphere overlapped its caption.
+
 ## v2.0.0-beta.7
 
 **A new look.** Same app, same controls, same animations; finished more

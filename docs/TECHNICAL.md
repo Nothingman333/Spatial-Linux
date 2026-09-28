@@ -123,8 +123,11 @@ module:
   or off, then noise cancelling or ambient sound, focus on voice, and the
   ambient level (20 of 20).
 
-It runs in a background thread; the panel shows the mode, ambient level
-and focus on voice read from the headphones, and what is happening.
+It runs in a background thread, once when the app starts (and, while no
+headphones have been found, again when the window comes back to the front,
+at most every half minute). A glass card in the header shows the mode,
+ambient level and Conversation (focus on voice) read from the headphones,
+and a spinner while it talks to them; it appears only when they are found.
 Noise cancelling itself has no strength field in the command (the
 headphones adapt it on their own), so only ambient sound has a slider.
 
@@ -326,8 +329,31 @@ filled with translucent light instead of flat colour.
   the walls.
 
 Beyond these, the window changes height along a smooth curve when a mode
-panel opens or closes, the equaliser curve flows into its new shape when a
-preset loads, and the power button pulses while the engine is running.
+panel opens or closes (and the panel fades up as it does), the equaliser
+curve flows into its new shape when a preset loads, and the power button
+floods white from its symbol when switched on and pulses while the engine
+is running.
+
+**The header** ([hero.py](../spatiallinux/ui/hero.py)) is a picture of
+light streaks that flows: far streaks drifting slowly, near ones faster,
+sparks falling through them, a bloom that sways and a band of light that
+sweeps across now and then. Each layer is drawn once per size, seamless at
+its ends, and then only slid along; a frame costs about 1 ms of drawing,
+and the header runs at 22 fps, faster-flowing while Spatial Linux is on.
+The glass controls on it are frosted for real: each frame the same layers
+are also composed at a quarter of the size, blurred, and painted inside
+each glass shape before the control draws itself.
+
+**Choices** ([controls.py](../spatiallinux/ui/controls.py)) -- the mode
+tabs, noise cancelling, the headphone options -- are each a glass pill, so
+they read as options; the chosen one is a white thumb that slides to the
+new choice, its leading edge leaving first and the trailing edge catching
+up, and each option's text darkens exactly as far as the thumb covers it.
+
+**The drop-downs** are frosted glass too: the window behind them is read
+about a dozen times a second while one is open, blurred, tinted and drawn
+as its background, so what moves behind keeps moving. They grow and fade
+in as they open.
 
 Qt has no bloom filter; the glow is made the way it is in vector art, by
 drawing the same shape in progressively wider and fainter passes and laying

@@ -169,11 +169,21 @@ class WelcomeArt(QWidget):
         word = min(1.0, max(0.0, (self._t - 0.5) / 1.1))
         if word > 0:
             we = word * word * (3 - 2 * word)
-            font = QFont("Inter Display", 30)
-            font.setWeight(QFont.Weight.Bold)
-            font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 6 - 3 * we)
-            path = QPainterPath()
-            path.addText(0, 0, font, "SPATIAL LINUX")
+            spacing = round(6 - 3 * we, 1)
+            if getattr(self, "_word_spacing", None) != spacing:
+                font = QFont("Inter Display", 30)
+                font.setWeight(QFont.Weight.Bold)
+                font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, spacing)
+                path = QPainterPath()
+                path.addText(0, 0, font, "SPATIAL LINUX")
+                # Inter's letters are built from overlapping pieces: with
+                # the default odd-even fill the overlaps punched holes in
+                # them, and the glow traced the seams. Merged into one
+                # outline instead (and kept until the spacing changes).
+                path.setFillRule(Qt.FillRule.WindingFill)
+                self._word_path = path.simplified()
+                self._word_spacing = spacing
+            path = self._word_path
             br = path.boundingRect()
             p.save()
             p.translate(cx - br.width() / 2 - br.left(), h * 0.93)

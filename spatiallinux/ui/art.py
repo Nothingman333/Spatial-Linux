@@ -256,8 +256,9 @@ class SphereArt(AnimatedArt):
     def paintEvent(self, ev):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        cx, cy = self.width() / 2, self.height() / 2
-        r = min(self.width(), self.height()) / 2 - 18
+        # clear of the caption along the bottom
+        cx, cy = self.width() / 2, (self.height() - 18) / 2
+        r = min(self.width(), self.height() - 18) / 2 - 14
         if r <= 0:
             return
 

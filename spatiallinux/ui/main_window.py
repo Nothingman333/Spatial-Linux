@@ -34,6 +34,8 @@ from .intro import IntroOverlay
 from .mixer import MixerButton, MixerPanel
 from .headphones import HeadphonesButton, HeadphonesPanel
 from .hero import Hero, Chip, Glass, ModeTab, PowerPill
+from .controls import ChoiceStrip, GlassIconButton
+from .noise import NoiseCard
 
 
 LOGO_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)),
@@ -46,27 +48,16 @@ class Panel(QFrame):
         self.setObjectName("panel")
 
 
-class GlobeButton(QPushButton):
+class GlobeButton(GlassIconButton):
     """Language switch. The globe is drawn rather than set as an emoji --
     the installed fonts have no glyph for it and it renders as a blank box."""
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setObjectName("globe")
-        self.setFixedSize(34, 34)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-
-    def paintEvent(self, ev):
-        super().paintEvent(ev)
-        p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        c = QColor(theme.TEXT)
-        pen = QPen(c)
+    def draw_icon(self, p: QPainter, cx: float, cy: float):
+        pen = QPen(QColor(theme.TEXT))
         pen.setWidthF(1.3)
         p.setPen(pen)
         p.setBrush(Qt.BrushStyle.NoBrush)
         r = 8.0
-        cx, cy = self.width() / 2, self.height() / 2
         p.drawEllipse(QRectF(cx - r, cy - r, r * 2, r * 2))
         p.drawLine(QPointF(cx - r, cy), QPointF(cx + r, cy))
         for k in (0.45, 0.95):                 # meridians
@@ -131,23 +122,42 @@ class BylineLink(QLabel):
         font = self.font()
         fm = self.fontMetrics()
         r = self.contentsRect()
-        path = QPainterPath()
-        path.addText(QPointF(r.left(), r.bottom() - fm.descent()),
-                     font, self.text())
+        key = (self.text(), r.left(), r.bottom(), self.width(), self.height(),
+               font.toString())
+        if getattr(self, "_path_key", None) != key:
+            path = QPainterPath()
+            path.addText(QPointF(r.left(), r.bottom() - fm.descent()),
+                         font, self.text())
+            # the font's letters are built from overlapping pieces; merged
+            # (once), so the glow does not trace the seams between them
+            path.setFillRule(Qt.FillRule.WindingFill)
+            self._path, self._path_key = path.simplified(), key
+            # the halo -- the letters stroked wide and faint, then a little
+            # tighter -- is the same every frame but for its strength, so it
+            # is drawn once and faded
+            ratio = self.devicePixelRatioF() or 1.0
+            halo = QPixmap(round(self.width() * ratio), round(self.height() * ratio))
+            halo.setDevicePixelRatio(ratio)
+            halo.fill(Qt.GlobalColor.transparent)
+            hp = QPainter(halo)
+            hp.setRenderHint(QPainter.RenderHint.Antialiasing)
+            for width, alpha in ((4.0, 38), (2.2, 70)):
+                c = QColor(theme.ACCENT2)
+                c.setAlpha(alpha)
+                pen = QPen(c)
+                pen.setWidthF(width)
+                pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+                hp.setPen(pen)
+                hp.drawPath(self._path)
+            hp.end()
+            self._halo = halo
+        path = self._path
 
         breath = 0.5 - 0.5 * math.cos(2 * math.pi * self._t / self.BREATH_S)
         glow = 1.0 if self._hover else 0.25 + 0.5 * breath
-
-        # halo: the same letters stroked wide and faint, then a little tighter
-        p.setBrush(Qt.BrushStyle.NoBrush)
-        for width, alpha in ((4.0, 38), (2.2, 70)):
-            c = QColor(theme.ACCENT2)
-            c.setAlpha(int(alpha * glow))
-            pen = QPen(c)
-            pen.setWidthF(width)
-            pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-            p.setPen(pen)
-            p.drawPath(path)
+        p.setOpacity(glow)
+        p.drawPixmap(0, 0, self._halo)
+        p.setOpacity(1.0)
 
         # the letters themselves, tinted from faint grey toward the accent
         base = QColor(theme.TEXT_FAINT)
@@ -183,19 +193,16 @@ class _Relay(QObject):
     progress = pyqtSignal(object)
 
 
-class InfoButton(GlobeButton):
+class InfoButton(GlassIconButton):
     """"How to use": a drawn i in a ring, beside the globe. Opens the
     introduction again."""
 
-    def paintEvent(self, ev):
-        QPushButton.paintEvent(self, ev)
-        p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+    def draw_icon(self, p: QPainter, cx: float, cy: float):
         pen = QPen(QColor(theme.TEXT))
         pen.setWidthF(1.3)
         p.setPen(pen)
         p.setBrush(Qt.BrushStyle.NoBrush)
-        cx, cy, r = self.width() / 2, self.height() / 2, 8.0
+        r = 8.0
         p.drawEllipse(QRectF(cx - r, cy - r, r * 2, r * 2))
         pen.setWidthF(1.8)
         pen.setCapStyle(Qt.PenCapStyle.RoundCap)
@@ -204,7 +211,6 @@ class InfoButton(GlobeButton):
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(QColor(theme.TEXT))
         p.drawEllipse(QPointF(cx, cy - 4.0), 1.2, 1.2)
-        p.end()
 
 
 class MainWindow(QMainWindow):
@@ -343,14 +349,15 @@ class MainWindow(QMainWindow):
 
     # -- header -------------------------------------------------------------
     def _build_hero(self) -> QWidget:
-        """The header: name, live status, the controls used most, and the
-        five modes, over the streak picture (see hero.py)."""
+        """The header: the name, the controls used most, noise cancelling
+        when there are headphones for it, and the five modes, over the
+        flowing streak picture (see hero.py)."""
         hero = self.hero = Hero()
         lay = QVBoxLayout(hero)
-        lay.setContentsMargins(26, 16, 16, 12)
+        lay.setContentsMargins(26, 16, 16, 14)
         lay.setSpacing(0)
 
-        # top: logo, date and what the app is, and the round buttons
+        # top: the logo, and the round buttons
         top = QHBoxLayout()
         top.setSpacing(8)
         logo = QLabel()
@@ -367,9 +374,6 @@ class MainWindow(QMainWindow):
         logo.setPixmap(pix)
         logo.setFixedSize(size, size)
         top.addWidget(logo)
-        self.subtitle = QLabel()
-        self.subtitle.setObjectName("heroCaption")
-        top.addWidget(self.subtitle)
         top.addStretch()
 
         # 3D head and headphone correction, in a drop-down panel
@@ -404,12 +408,18 @@ class MainWindow(QMainWindow):
         self.info_btn.clicked.connect(lambda: self._show_intro())
         top.addWidget(self.info_btn)
         lay.addLayout(top)
-        lay.addSpacing(8)
+        lay.addSpacing(2)
 
-        # the name, large: "Spatial", then "Linux" in bold italic
+        # the name, large: "Spatial", then "Linux" in bold italic -- and
+        # on the right, noise cancelling
+        middle = QHBoxLayout()
+        middle.setSpacing(16)
+        name = QVBoxLayout()
+        name.setSpacing(0)
+        name.addStretch()
         title = QLabel("Spatial")
         title.setObjectName("heroTitle")
-        lay.addWidget(title)
+        name.addWidget(title)
         name_row = QHBoxLayout()
         name_row.setSpacing(12)
         linux = QLabel("Linux")
@@ -424,25 +434,34 @@ class MainWindow(QMainWindow):
         self.version_label.setObjectName("version")
         name_row.addWidget(self.version_label, 0, Qt.AlignmentFlag.AlignBottom)
         name_row.addStretch()
-        lay.addLayout(name_row)
-        lay.addSpacing(8)
+        name.addLayout(name_row)
+        middle.addLayout(name, 1)
+        # its place is kept while it is hidden, so the window never jumps
+        slot = QWidget()
+        slot.setFixedSize(NoiseCard.WIDTH, NoiseCard.HEIGHT)
+        slot_lay = QVBoxLayout(slot)
+        slot_lay.setContentsMargins(0, 0, 0, 0)
+        self.noise_card = NoiseCard()
+        slot_lay.addWidget(self.noise_card)
+        self.noise_card.picked.connect(self._on_sony_picked)
+        self.noise_card.level.connect(self._on_sony_level)
+        self.noise_card.voice.connect(self._on_sony_voice)
+        self.noise_card.retry.connect(lambda: self._sony_refresh(force=True))
+        middle.addWidget(slot, 0, Qt.AlignmentFlag.AlignBottom)
+        lay.addLayout(middle)
+        lay.addSpacing(12)
 
-        # live status, as chips: on or off, the mode and its amount, the
-        # device the sound ends up on
+        # where the sound goes, and the two levels
         chips = QHBoxLayout()
         chips.setSpacing(8)
-        self.status_chip = Chip()
-        chips.addWidget(self.status_chip)
-        self.mode_chip = Chip()
-        chips.addWidget(self.mode_chip)
         self.output_chip = Chip()
         chips.addWidget(self.output_chip)
         # the old header's labels live on inside the output chip
         self.out_head = self.output_chip.label
         self.output_label = self.output_chip.value
-        self.out_head.setText(t("output_chip"))
+        self.output_chip.set(t("output_chip"), "", theme.TEXT_FAINT)
         chips.addStretch()
-        vol = Glass()
+        vol = self.vol_glass = Glass()
         self.vol_head = QLabel(t("volume_short"))
         self.vol_head.setObjectName("glassLabel")
         vol.row.addWidget(self.vol_head)
@@ -457,9 +476,8 @@ class MainWindow(QMainWindow):
         self.volume_label.setFixedWidth(26)
         vol.row.addWidget(self.volume_label)
         chips.addWidget(vol)
-        chips.addSpacing(6)
 
-        pre = Glass()
+        pre = self.pre_glass = Glass()
         self.pre_head = QLabel(t("preamp_short"))
         self.pre_head.setObjectName("glassLabel")
         pre.row.addWidget(self.pre_head)
@@ -474,22 +492,22 @@ class MainWindow(QMainWindow):
         self.preamp_label.setFixedWidth(42)
         pre.row.addWidget(self.preamp_label)
         chips.addWidget(pre)
-        chips.addSpacing(6)
 
         lay.addLayout(chips)
         lay.addStretch(1)
-        lay.addSpacing(8)
+        lay.addSpacing(12)
 
-        # bottom: the modes as tabs, then volume, pre-amp and power
+        # bottom: the modes as a strip of tabs, and power
         bottom = QHBoxLayout()
-        bottom.setSpacing(4)
+        bottom.setSpacing(8)
+        self.mode_strip = ChoiceStrip(stretch=False, height=32, glow=True)
         self.feature_buttons = {}
         for key, glyph in self.FEATURES:
-            btn = ModeTab(glyph, t(key))
+            btn = self.mode_strip.add(ModeTab(glyph, t(key)))
             btn.setToolTip(t("one_mode_note"))
             btn.clicked.connect(lambda _c, k=key: self._on_feature_clicked(k))
-            bottom.addWidget(btn)
             self.feature_buttons[key] = btn
+        bottom.addWidget(self.mode_strip)
         # kept for the language switch; its text is now the tabs' tooltip
         self.mode_note = QLabel()
         bottom.addStretch()
@@ -498,40 +516,20 @@ class MainWindow(QMainWindow):
         self.power_btn.setTexts(t("power_off"), t("power_on"))
         self.power_btn.setToolTip(t("power_tip"))
         self.power_btn.clicked.connect(self._on_power_toggled)
-        self.power_btn.toggled.connect(lambda on: (self.hero.set_active(on),
-                                                   self._refresh_chips()))
+        self.power_btn.toggled.connect(self.hero.set_active)
+        self.power_btn.toggled.connect(
+            lambda on: self.output_chip.set_dot(theme.OK if on else theme.TEXT_FAINT))
         bottom.addWidget(self.power_btn)
         lay.addLayout(bottom)
 
-        self._refresh_caption()
+        # frosted glass under everything that sits on the picture
+        for w in (self.hp_btn, self.mixer_btn, self.lang_btn, self.info_btn,
+                  self.output_chip, vol, pre, self.power_btn):
+            hero.add_glass(w)
+        hero.add_glass(self.noise_card, 18.0)
+        for btn in self.feature_buttons.values():
+            hero.add_glass(btn)
         return hero
-
-    def _refresh_caption(self):
-        """Today's date and what the app is, above the name."""
-        from PyQt6.QtCore import QDate, QLocale
-        locale = QLocale(QLocale.Language.Turkish if i18n.language() == "tr"
-                         else QLocale.Language.English)
-        date = locale.toString(QDate.currentDate(), "dddd, d MMMM")
-        self.subtitle.setText(f"{date}  ·  {t('subtitle')}")
-
-    def _refresh_chips(self):
-        """On or off; the mode engaged and how much; where the sound goes."""
-        if not hasattr(self, "status_chip"):
-            return
-        on = self.power_btn.isChecked()
-        self.status_chip.set(t("chip_on") if on else t("chip_off"), "",
-                             theme.OK if on else theme.TEXT_FAINT)
-        key = self._active_key()
-        if key:
-            value = self._remembered.get(key, 0.0)
-            if key in ("surround", "ambience", "night"):
-                amount = f"{round(value * 100)}%"
-            else:
-                amount = f"+{value:.0f} dB" if value else "0 dB"
-            glyph = dict(self.FEATURES)[key]
-            self.mode_chip.set(f"{glyph}  {t(key)}", amount)
-        else:
-            self.mode_chip.set(t("chip_no_mode"))
 
     # -- EQ panel -----------------------------------------------------------
     def _build_eq_panel(self) -> QWidget:
@@ -656,12 +654,7 @@ class MainWindow(QMainWindow):
 
     def _refresh_feature_buttons(self):
         for key, btn in self.feature_buttons.items():
-            on = self.state.active == key
-            btn.setChecked(on)
-            btn.setProperty("active", on)
-            btn.style().unpolish(btn)
-            btn.style().polish(btn)
-        self._refresh_chips()
+            btn.setChecked(self.state.active == key)
 
     # -- state <-> widgets --------------------------------------------------
     def _adopt_state(self, state):
@@ -728,7 +721,6 @@ class MainWindow(QMainWindow):
 
     def _retranslate(self):
         """Re-label everything in place; no restart, nothing loses its value."""
-        self._refresh_caption()
         self.vol_head.setText(t("volume_short"))
         self.pre_head.setText(t("preamp_short"))
         self.out_head.setText(t("output_chip"))
@@ -757,7 +749,7 @@ class MainWindow(QMainWindow):
         self._fill_presets(self.preset_combo.currentData())
         self.power_btn.setToolTip(t("power_tip"))
         self.power_btn.setTexts(t("power_off"), t("power_on"))
-        self._refresh_chips()
+        self.noise_card.retranslate()
 
     def _active_key(self):
         return self.state.active if self.state.active in self.FEATURE_KEYS else None
@@ -803,20 +795,14 @@ class MainWindow(QMainWindow):
         panel = self._hp_panel = HeadphonesPanel(
             self.engine.style, self.engine.head,
             self.settings.get("custom_hrir_name"),
-            eq.get("name") if eq else None, self.engine.hp_eq_on,
-            self._sony, self)
+            eq.get("name") if eq else None, self.engine.hp_eq_on, self)
         panel.stylePicked.connect(self._on_style_picked)
         panel.headPicked.connect(self._on_head_picked)
         panel.chooseHrir.connect(self._choose_hrir)
         panel.loadEq.connect(self._load_hp_eq)
         panel.eqToggled.connect(self._on_hp_eq_toggled)
         panel.eqRemoved.connect(self._remove_hp_eq)
-        panel.sonyPicked.connect(self._on_sony_picked)
-        panel.sonyLevel.connect(self._on_sony_level)
-        panel.sonyVoice.connect(self._on_sony_voice)
-        panel.sonyRetry.connect(lambda: self._sony_refresh(force=True))
         panel.open_below(self.hp_btn)
-        self._sony_refresh()
 
     # -- Sony noise cancelling (see sony.py) ------------------------------------
     def _sony_run(self, work):
@@ -837,9 +823,10 @@ class MainWindow(QMainWindow):
 
     def _sony_refresh(self, force: bool = False):
         """Find Sony headphones among the Bluetooth outputs and read their
-        mode -- the output in use first. Done once: after that the panel
-        shows what is known, and asks again only when told to (Try again),
-        or at most every half minute while none have been found."""
+        mode -- the output in use first. Done once, at start: after that the
+        card shows what is known, and asks again only when told to (Try
+        again), or -- while none have been found -- when the window comes
+        back to the front, at most every half minute."""
         import time
         if not sony.available():
             return
@@ -925,9 +912,7 @@ class MainWindow(QMainWindow):
         self._show_sony()
 
     def _show_sony(self):
-        panel = self._hp_panel
-        if panel is not None and panel.isVisible():
-            panel.set_sony(self._sony)
+        self.noise_card.set_sony(self._sony)
 
     def _on_style_picked(self, style: str):
         if style == self.engine.style:
@@ -1120,6 +1105,23 @@ class MainWindow(QMainWindow):
         self.detail_layout.addWidget(p)
         self.detail_holder.setVisible(True)
         self._fit_window(p.height())
+        self._fade_in(p)
+
+    def _fade_in(self, widget: QWidget):
+        """A new mode panel fades up as it slides open."""
+        from PyQt6.QtWidgets import QGraphicsOpacityEffect
+        fx = QGraphicsOpacityEffect(widget)
+        fx.setOpacity(0.0)
+        widget.setGraphicsEffect(fx)
+        anim = QVariantAnimation(widget)
+        anim.setDuration(340)
+        anim.setStartValue(0.0)
+        anim.setEndValue(1.0)
+        anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        anim.valueChanged.connect(lambda v: fx.setOpacity(float(v)))
+        # drawn directly again once it is in
+        anim.finished.connect(lambda: widget.setGraphicsEffect(None))
+        anim.start(QVariantAnimation.DeletionPolicy.DeleteWhenStopped)
 
     # Panels that show a percentage emit 0-100 while the engine wants 0-1.
     # (SurroundPanel already emits 0-1, and the dB panels emit dB.)
@@ -1130,7 +1132,6 @@ class MainWindow(QMainWindow):
         self._remembered[key] = value
         if self.state.active == key:
             self._apply_amount(key, value)
-        self._refresh_chips()
 
     def _on_treble_changed(self, key: str, value: float):
         self._remembered[f"{key}_treble"] = value
@@ -1305,6 +1306,11 @@ class MainWindow(QMainWindow):
 
     def _after_intro(self):
         self._intro = None
+        self._sony_refresh()
+        from PyQt6.QtGui import QGuiApplication
+        QGuiApplication.instance().applicationStateChanged.connect(
+            lambda state: state == Qt.ApplicationState.ApplicationActive
+            and self._sony_refresh())
         if not self.settings.get(self.INTRO_KEY):
             self.settings[self.INTRO_KEY] = True
             self._save_if_changed()
