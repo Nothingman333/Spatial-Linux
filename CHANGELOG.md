@@ -1,5 +1,118 @@
 # Changelog
 
+## v2.0.0
+
+**The second big version.** Everything that changed since the last stable
+release, 1.10.4, in one place. (The test releases on the way,
+2.0.0-beta.1 to beta.13, are listed below it, step by step.)
+
+### Sound
+
+- **Real 5.1 / 7.1 surround.** The Spatial Linux device takes 7.1 now, so
+  a game or film playing surround reaches it with every channel apart,
+  instead of folded into stereo first. The centre is heard in the middle,
+  the side and back channels from beside and behind you, each through the
+  measured head from its own direction. **Stereo sounds exactly as in
+  1.10.4** (checked sample by sample).
+- **Speakers in a room -- a second kind of 3D.** Instead of the classic
+  headphone 3D you can hear speakers in front of you in a **Studio**, a
+  **Living room** or a **Cinema**: each speaker, and each reflection off
+  the walls, floor and ceiling, from its own direction through the
+  measured head, then the room's own reverb -- the way Dolby Atmos for
+  Headphones and similar virtualisers take sound out of your head. Works
+  for stereo and 5.1 / 7.1. Tuned by measurement to sound neutral (within
+  about ±2 dB from 40 Hz to 16 kHz on music) and to be exactly as loud as
+  the classic 3D. In a room, the 3D intensity is how much of the room you
+  hear, and Reverb sets its tail.
+- **Choose the 3D head:** the MIT KEMAR head, or a Neumann KU 100 (from the
+  SADIE II database, University of York). Heads differ like ears do; pick
+  the one that puts the sound most clearly in front of you. Both are
+  matched in strength.
+- **Your own HRIR file.** Load an HRIR file in the HeSuVi layout -- 14
+  channels, or 7 for a symmetric head -- and every channel runs through
+  it. ("Own file" is one choice: the first time, it asks for the file.)
+- **Headphone correction.** Load the AutoEQ `ParametricEQ.txt` for your
+  headphone model (autoeq.app) to even out its own sound; On / Off at any
+  time, without a gap.
+- All of these live in the new **headphones panel** (the headphones button
+  in the header). They belong to you and your headphones, not to a sound,
+  so they are kept in the settings, not in presets. Changing the 3D kind
+  or head restarts the sound for a moment; everything else changes live.
+
+### Noise cancelling for Sony headphones
+
+- With Sony headphones connected (WH-1000XM5 and relatives), switch
+  between **Noise cancelling**, **Ambient sound** and **Off** from a glass
+  card on the main window -- the same setting as in Sony's phone app, no
+  phone needed. It talks to the headphones directly over Bluetooth, the
+  way the Sony app does (following Gadgetbridge's open implementation of
+  Sony's protocol), with nothing to install, and always in the
+  background, so the window never waits on Bluetooth.
+- In ambient sound, a **Level** slider (1-20, as in Sony's app) sets how
+  much of the outside comes in, and **Conversation** brings voices
+  forward. Noise cancelling has no strength setting: the headphones adjust
+  it themselves.
+- **A short sound confirms each change** (the headphones stay silent when
+  an app changes the mode): a deep, soft whoosh closing down for noise
+  cancelling, the same whoosh opening up for ambient sound, two low ticks
+  for off. Soft and quiet on purpose.
+- The card shows only for headphones that have answered; headphones whose
+  noise cancelling cannot be set show nothing. The headphones are looked up
+  once when the app starts, and a failed attempt is tried again on its own.
+  The headphones panel lets you **pick the headphones yourself** if they
+  are not found, shows what is going on, and has Try again.
+- Some headphones, the WH-1000XM5 among them, accept every setting but
+  never report their current mode; then no mode shows as picked until you
+  choose one.
+- Every attempt is written to
+  `~/.local/share/spatiallinux/noise-cancelling.log`, for when something
+  goes wrong.
+- The Flatpak may now open Bluetooth connections (for the above).
+
+### A new look
+
+- **The header is a flowing picture of light:** streaks drifting at their
+  own pace, sparks falling through them, a swaying bloom and a band of
+  light sweeping across now and then; dimmer and slower while Spatial Linux
+  is off. The name is set large -- "Spatial", then "Linux" in bold italic.
+- **Frosted glass:** the round buttons, the volume and pre-amp pills, the
+  mode tabs, the power button and the noise card show the picture behind
+  them blurred, and the drop-downs (headphones, equaliser, app volumes)
+  are frosted glass over the window -- all one material, dark and even.
+- **Options look like options:** every mode tab and choice is a glass pill
+  of its own; the chosen one is a white thumb that slides over to the new
+  choice, stretching a little on the way.
+- **The equaliser is a drop-down** from its own button in the header (a
+  curve through three points), so the window is shorter.
+- **Inter** as the typeface, bundled, with its display cut for large type;
+  calmer colours, larger rounding, thinner sliders with a white handle.
+- **More motion:** the power button floods white from its symbol when
+  switched on; buttons and pills ease in on hover; drop-downs grow and fade
+  in; a mode panel fades up as it opens.
+- **Smoother animations:** everything that moves runs on one shared clock
+  and is painted in one pass, follows the real time between frames, and
+  the header's light moves by fractions of a pixel -- no hitches, no
+  one-pixel steps. Animations still stop while the window is in the
+  background.
+- A quieter header: no date or status chips; the tabs and the power button
+  already say it all.
+
+### Fixes
+
+- The "SPATIAL LINUX" wordmark in the introduction had holes and seams in
+  some letters.
+- The 3D sphere overlapped its caption.
+
+### Releases
+
+- Publishing a new version no longer removes the older ones.
+
+## v2.0.0-beta.14 (in 2.0.0)
+
+- The header's glass (noise card, volume and pre-amp, tabs, round
+  buttons) is made exactly like the drop-downs' glass: the light behind
+  drained of colour, at half strength, under the same dark tint.
+
 ## v2.0.0-beta.13
 
 - **Drop-downs are frosted the same all over.** They were grey and dark

@@ -42,6 +42,9 @@ from .controls import ChoiceButton, blur
 
 RADIUS = 26.0
 BASE = QColor("#0b0913")
+# the glass, as in controls.GlassPopup
+GLASS_BASE = QColor(19, 17, 26, 238)
+GLASS_TINT = QColor(20, 18, 28, 170)
 
 # the light's colours: violet, lavender, indigo, a little magenta and, rarely,
 # a warm glint -- (r, g, b, how often)
@@ -381,7 +384,13 @@ class Hero(QFrame):
         self._layers.paint(p, self._t, self._level)
 
         # frosted glass: the same light, blurred, under each glass control
-        frost = QBrush(self._layers.frosted(self._t, self._level))
+        # -- made exactly as the drop-downs' glass is (controls.GlassPopup):
+        # the light behind drained of colour, at half strength, under the
+        # same dark tint -- so the header's glass and a drop-down over it
+        # are one material
+        grey = self._layers.frosted(self._t, self._level).convertToFormat(
+            QImage.Format.Format_Grayscale8)
+        frost = QBrush(grey)
         frost.setTransform(QTransform.fromScale(FROST_SCALE, FROST_SCALE))
         p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         p.setPen(Qt.PenStyle.NoPen)
@@ -395,7 +404,13 @@ class Hero(QFrame):
             r = QRectF(top_left.x(), top_left.y(), widget.width(), widget.height())
             rad = r.height() / 2 if radius is None else radius
             p.setOpacity(level)
+            p.setBrush(GLASS_BASE)
+            p.drawRoundedRect(r, rad, rad)
+            p.setOpacity(level * 0.5)
             p.setBrush(frost)
+            p.drawRoundedRect(r, rad, rad)
+            p.setOpacity(level)
+            p.setBrush(GLASS_TINT)
             p.drawRoundedRect(r, rad, rad)
         p.setOpacity(1.0)
 
