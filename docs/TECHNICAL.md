@@ -33,7 +33,7 @@ restarts it, a moment of silence.
 In order, the graph is: the 3D stage (the front pair) and the placement of
 the other surround channels → the tone chain (pre-amp, equaliser, bass,
 fidelity, subwoofer) → ambience → treble → night mode → headphone
-correction → limiter → the A/B switch. The tone chain used to come first;
+correction → limiter. The tone chain used to come first;
 every stage in it is linear and identical on both channels, so moving it
 after the 3D stage changes nothing for stereo (checked in a sample-by-sample
 simulation of the old and new graphs: the largest difference was 10⁻¹²,
@@ -106,12 +106,50 @@ slots, each a peaking, a low-shelf and a high-shelf filter in a row: the
 file's filter uses the one of its kind and the other two stay at 0 dB, where
 a biquad is exactly transparent. The file's pre-amp is applied first.
 
-### A/B
+### Speakers in a room
 
-The A/B button, held, plays the plain original: the sound as it arrives,
-downmixed to stereo the way PipeWire would, with none of Spatial Linux's
-processing. It is a crossfade of two mixer gains at the very end of the
-graph, so it switches instantly and without a gap.
+The "classic" 3D keeps the direct sound dry and adds cues around it: clear
+and close, but still recognisably headphones. The room styles (Studio,
+Living room, Cinema) do what headphone virtualisers of the Dolby Atmos for
+Headphones kind do instead: they play every channel from a **virtual
+speaker in a room**, built in [`tools/room.py`](../tools/room.py):
+
+1. **The direct sound** of each speaker (the 7.1 layout: ±30°, 0°, ±100°,
+   ±142°), through the measured head from its direction.
+2. **Early reflections** off the walls, floor and ceiling, from the
+   image-source method (Allen & Berkley) up to the third order — each one
+   rendered with the head's response *from the direction it arrives
+   from*, above and below included, which is where the sense of height
+   comes from; later ones darker, as real surfaces absorb the highs.
+3. **The late reverberation**, which carries no direction, once for all
+   channels: decorrelated noise per ear whose highs die away faster than
+   its lows, taking over at the room's mixing time.
+
+| Room | Size | Speakers | Reverb time |
+|---|---|---|---|
+| Studio | 5 × 4.2 × 2.8 m, treated | 1.4 m | 0.25 s |
+| Living room | 6 × 4.6 × 2.7 m | 2 m | 0.45 s |
+| Cinema | 14 × 10 × 6 m | 4 m | 0.9 s |
+
+Measured, the first versions of this sounded thin and boomy: dummy-head
+data is weak in the bass (the MIT KEMAR set is 9 dB down at 63 Hz), and
+reflections in the bass made a 6 dB hole at 125 Hz in the living room. So:
+the head's responses are made flat below 250 Hz (a clean pulse at each
+ear's own arrival time, so the interaural delay stays); reflections and
+the tail carry no bass (a 4th-order high-pass at 220 / 150 Hz); the head is
+equalised so the front pair of speakers sounds neutral; and each room gets
+one overall tone correction, like room correction on real speakers, from
+the speakers and reflections as they actually add up. Result, with stereo
+pink noise through both ears: within about ±2 dB from 40 Hz to 16 kHz for
+every room and both heads — as flat as the classic 3D — and each room is
+set to exactly the classic 3D's loudness, so switching compares the sound
+and not the level.
+
+In the 3D panel, the intensity is how much of the room is heard with the
+speakers (its natural amount at the default 65%; at 0% the mode is off and
+the sound is plain), and Reverb sets the tail on its own. The files
+(direct sound in channels 0–13, reflections in 14–27, HeSuVi layout, so the
+graph wires them like an own HRIR file) are built for both heads.
 
 ### How 3D Surround works
 

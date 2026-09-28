@@ -28,7 +28,7 @@ from .panels import SurroundPanel, SliderPanel
 from .art import BassHeadArt, LipsArt, NightBreathArt, AmbienceArt, FrameTimer
 from .intro import IntroOverlay
 from .mixer import MixerButton, MixerPanel
-from .headphones import HeadphonesButton, HeadphonesPanel, ABButton
+from .headphones import HeadphonesButton, HeadphonesPanel
 
 
 LOGO_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)),
@@ -452,13 +452,6 @@ class MainWindow(QMainWindow):
         self.power_btn.clicked.connect(self._on_power_toggled)
         lay.addWidget(self.power_btn)
 
-        # held: the original sound, to compare
-        self.ab_btn = ABButton()
-        self.ab_btn.setToolTip(t("ab_tip"))
-        self.ab_btn.pressed.connect(lambda: self._set_bypass(True))
-        self.ab_btn.released.connect(lambda: self._set_bypass(False))
-        lay.addWidget(self.ab_btn, 0, Qt.AlignmentFlag.AlignVCenter)
-
         vol_box = QVBoxLayout()
         vol_box.setSpacing(2)
         vol_head = self.vol_head = QLabel(t("volume"))
@@ -762,7 +755,6 @@ class MainWindow(QMainWindow):
         self.info_btn.setToolTip(t("info_tip"))
         self.mixer_btn.setToolTip(t("mixer_tip"))
         self.hp_btn.setToolTip(t("hp_tip"))
-        self.ab_btn.setToolTip(t("ab_tip"))
         self.mode_note.setText(t("one_mode_note"))
         self.eq_head.setText(t("equaliser"))
         self.eq_hint.setText(t("eq_hint"))
@@ -800,13 +792,20 @@ class MainWindow(QMainWindow):
         self._mixer = MixerPanel(self.engine, self)
         self._mixer.open_below(self.mixer_btn)
 
-    # -- headphones: 3D head, own HRIR, correction, A/B -------------------------
+    # -- headphones: 3D style and head, own HRIR, correction ----------------------
     def _apply_listener_settings(self):
         head = self.settings.get("head")
-        if head not in engine_mod.HEADS and head != "custom":
+        style = self.settings.get("style")
+        if head == "custom":                 # 2.0.0-beta.1 kept it here
+            style, head = "custom", engine_mod.DEFAULT_HEAD
+            self.settings["style"], self.settings["head"] = style, head
+        if head not in engine_mod.HEADS:
             head = engine_mod.DEFAULT_HEAD
-        if head == "custom" and not os.path.exists(engine_mod.CUSTOM_HRIR_PATH):
-            head = engine_mod.DEFAULT_HEAD
+        if style not in engine_mod.STYLES:
+            style = engine_mod.DEFAULT_STYLE
+        if style == "custom" and not os.path.exists(engine_mod.CUSTOM_HRIR_PATH):
+            style = engine_mod.DEFAULT_STYLE
+        self.engine.style = style
         self.engine.head = head
         eq = self.settings.get("hp_eq")
         self.engine.hp_eq = eq if isinstance(eq, dict) and eq.get("filters") else None
@@ -818,14 +817,23 @@ class MainWindow(QMainWindow):
             self._hp_panel.deleteLater()
         eq = self.engine.hp_eq
         panel = self._hp_panel = HeadphonesPanel(
-            self.engine.head, self.settings.get("custom_hrir_name"),
+            self.engine.style, self.engine.head,
+            self.settings.get("custom_hrir_name"),
             eq.get("name") if eq else None, self.engine.hp_eq_on, self)
+        panel.stylePicked.connect(self._on_style_picked)
         panel.headPicked.connect(self._on_head_picked)
         panel.chooseHrir.connect(self._choose_hrir)
         panel.loadEq.connect(self._load_hp_eq)
         panel.eqToggled.connect(self._on_hp_eq_toggled)
         panel.eqRemoved.connect(self._remove_hp_eq)
         panel.open_below(self.hp_btn)
+
+    def _on_style_picked(self, style: str):
+        if style == self.engine.style:
+            return
+        self.engine.style = style
+        self.settings["style"] = style
+        self._reconfigure()
 
     def _on_head_picked(self, head: str):
         if head == self.engine.head:
@@ -871,8 +879,8 @@ class MainWindow(QMainWindow):
         shutil.copyfile(path, engine_mod.CUSTOM_HRIR_PATH)
         self.settings["custom_hrir_name"] = os.path.basename(path)
         # a new file needs the graph rebuilt even if "custom" was on already
-        self.engine.head = "custom"
-        self.settings["head"] = "custom"
+        self.engine.style = "custom"
+        self.settings["style"] = "custom"
         self._reconfigure()
 
     def _load_hp_eq(self):
@@ -907,10 +915,6 @@ class MainWindow(QMainWindow):
     def _remove_hp_eq(self):
         self.settings.pop("hp_eq", None)
         self.engine.set_hp_eq(None, True)
-
-    def _set_bypass(self, on: bool):
-        self.engine.set_bypass(on)
-        self.engine.flush()
 
     def _schedule_flush(self):
         if not self._flush_timer.isActive():

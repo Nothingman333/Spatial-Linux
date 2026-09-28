@@ -190,6 +190,53 @@ _STRINGS = {
                         "3D sesin hangi kulaklarla ölçüldüğü. Kafalar da "
                         "kulaklar gibi farklıdır: sesin en net önünde ve "
                         "kafanın dışında duyulduğunu seç."),
+    "hp_style":        ("3D SOUND", "3D SES"),
+    "style_classic":   ("Classic", "Klasik"),
+    "style_classic_tip": ("Spatial Linux's own 3D: your music stays clear and "
+                          "close, with space around it",
+                          "Spatial Linux'un kendi 3D'si: müzik net ve yakın "
+                          "kalır, etrafında bir alan açılır"),
+    "style_classic_hint": ("Spatial Linux's own 3D: the sound stays clear and "
+                           "close, with width and a touch of room around it.",
+                           "Spatial Linux'un kendi 3D'si: ses net ve yakın "
+                           "kalır, etrafında genişlik ve biraz oda olur."),
+    "style_studio":    ("Studio", "Stüdyo"),
+    "style_studio_tip": ("Speakers in a treated studio: close, precise, "
+                         "very little room",
+                         "Akustiği düzenlenmiş bir stüdyoda hoparlörler: "
+                         "yakın, net, çok az oda"),
+    "style_studio_hint": ("Virtual speakers in a treated studio. You hear "
+                          "speakers in front of you instead of headphones: "
+                          "each speaker, and each reflection off the walls, "
+                          "floor and ceiling, from its own direction.",
+                          "Akustiği düzenlenmiş bir stüdyoda sanal "
+                          "hoparlörler. Kulaklık yerine önündeki hoparlörleri "
+                          "duyarsın: her hoparlörü ve duvar, zemin, tavandan "
+                          "gelen her yansımayı kendi yönünden."),
+    "style_living":    ("Living room", "Salon"),
+    "style_living_tip": ("Speakers in a living room: natural and relaxed",
+                         "Salonda hoparlörler: doğal ve rahat"),
+    "style_living_hint": ("Virtual speakers in a living room: a little further "
+                          "away, with the room's natural sound around them.",
+                          "Salonda sanal hoparlörler: biraz daha uzakta, "
+                          "etraflarında odanın doğal sesiyle."),
+    "style_cinema":    ("Cinema", "Sinema"),
+    "style_cinema_tip": ("Speakers in a cinema: big and spacious",
+                         "Sinemada hoparlörler: büyük ve geniş"),
+    "style_cinema_hint": ("Virtual speakers in a cinema: far away, big and "
+                          "enveloping — made for films and games.",
+                          "Sinemada sanal hoparlörler: uzakta, büyük ve saran "
+                          "bir ses — filmler ve oyunlar için."),
+    "style_custom":    ("Own file", "Kendi dosyan"),
+    "style_custom_tip": ("Your own 14-channel HRIR file in the HeSuVi layout; "
+                         "every channel goes through it",
+                         "HeSuVi düzeninde kendi 14 kanallı HRIR dosyan; tüm "
+                         "kanallar ondan geçer"),
+    "style_custom_hint": ("Every channel goes through your own HRIR file "
+                          "(14 channels, HeSuVi layout). The intensity "
+                          "blends it with the plain sound.",
+                          "Tüm kanallar kendi HRIR dosyandan geçer (14 kanal, "
+                          "HeSuVi düzeni). Yoğunluk onu düz sesle karıştırır."),
     "head_kemar":      ("KEMAR", "KEMAR"),
     "head_kemar_tip":  ("MIT KEMAR dummy head (the original sound)",
                         "MIT KEMAR yapay kafa (orijinal ses)"),
@@ -198,11 +245,6 @@ _STRINGS = {
                         "York)",
                         "Neumann KU 100 yapay kafa, SADIE II (York "
                         "Üniversitesi)"),
-    "head_custom":     ("Own file", "Kendi dosyan"),
-    "head_custom_tip": ("Your own 14-channel HRIR file in the HeSuVi layout; "
-                        "every channel goes through it",
-                        "HeSuVi düzeninde kendi 14 kanallı HRIR dosyan; tüm "
-                        "kanallar ondan geçer"),
     "hp_choose_hrir":  ("Choose HRIR file…", "HRIR dosyası seç…"),
     "hp_no_hrir":      ("No file chosen", "Dosya seçilmedi"),
     "hp_eq":           ("HEADPHONE CORRECTION", "KULAKLIK DÜZELTME"),
@@ -221,9 +263,6 @@ _STRINGS = {
                         "5.1 ya da 7.1 çalan oyun ve filmler çevrenden "
                         "duyulur: her kanal kendi yerinden. Stereo "
                         "değişmez."),
-    "ab_tip":          ("Hold to hear the original sound, without Spatial "
-                        "Linux", "Basılı tut: orijinal sesi, Spatial Linux "
-                        "olmadan dinle"),
     "hrir_bad":        ("This is not a 14-channel HRIR file in the HeSuVi "
                         "layout. It has {n} channels.",
                         "Bu, HeSuVi düzeninde 14 kanallı bir HRIR dosyası "
@@ -238,8 +277,8 @@ _STRINGS = {
                         "were left out.",
                         "Bu dosyadaki {n} filtre kullanılamadı ve dışarıda "
                         "bırakıldı."),
-    "reconfigure_failed": ("Could not switch the 3D head:",
-                           "3D kafa değiştirilemedi:"),
+    "reconfigure_failed": ("Could not switch the 3D sound:",
+                           "3D ses değiştirilemedi:"),
     "info_tip":        ("How to use", "Nasıl kullanılır"),
     "intro_ready_t":   ("You're ready", "Hazırsın"),
     "intro_ready":     ("Press the power button to switch it on. One mode "

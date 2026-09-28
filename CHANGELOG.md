@@ -1,5 +1,24 @@
 # Changelog
 
+## v2.0.0-beta.2
+
+- **Speakers in a room.** A new kind of 3D, chosen in the headphones panel:
+  **Studio**, **Living room** or **Cinema**. Instead of headphones you hear
+  speakers in front of you in that room: each speaker, and each reflection
+  off the walls, floor and ceiling, from its own direction through the
+  measured head (the floor and ceiling are where the sense of height comes
+  from), then the room's own reverb. This is how Dolby Atmos for Headphones
+  and similar virtualisers take sound out of your head. It works for stereo
+  and for 5.1 / 7.1, with either head.
+- Tuned by measurement to sound **neutral** (within about ±2 dB from 40 Hz
+  to 16 kHz on music, as flat as the classic 3D) and to be **exactly as
+  loud** as the classic 3D, so switching compares the sound, not the level.
+- In a room, the 3D intensity is how much of the room you hear with the
+  speakers, and Reverb sets the room's tail.
+- The **3D sound** choice (Classic, Studio, Living room, Cinema, Own file)
+  and the **3D head** are now two separate rows in the headphones panel.
+- The A/B button is gone.
+
 ## v2.0.0-beta.1
 
 A test release of the next big version. The stable 1.10.4 stays available

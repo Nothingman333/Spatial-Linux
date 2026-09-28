@@ -226,6 +226,22 @@ HESUVI_CHANNELS = {"FL": (0, 1), "FR": (8, 7), "FC": (6, 13), "LFE": (6, 13),
 HESUVI_GAIN = {"FC": 2.0}
 CUSTOM_HRIR_PATH = os.path.join(RUNTIME_DIR, "custom_hrir.wav")
 
+# 3D styles: Spatial Linux's own ("classic"), virtual speakers in one of
+# these rooms (files built by tools/build_ir.py and tools/room.py), or the
+# listener's own HRIR file ("custom").
+ROOMS = ("studio", "living", "cinema")
+STYLES = ("classic",) + ROOMS + ("custom",)
+DEFAULT_STYLE = "classic"
+# the room's own amount of reflections and tail is heard at the default
+# intensity (65%) and the default Reverb (25%)
+ROOM_NATURAL_AMOUNT = 0.65
+ROOM_NATURAL_TAIL = 0.25
+ROOM_TAIL_MAX = 2.5
+# Each room at the same loudness as the classic 3D on music, so switching
+# compares the sound and not the level (a louder version always seems
+# better); measured with correlated stereo pink noise.
+ROOM_TRIM_DB = {"studio": -3.9, "living": -3.8, "cinema": -3.5}
+
 # Headphone correction (an AutoEQ "ParametricEQ.txt"): this many filters,
 # each slot able to be any of these kinds.
 HP_EQ_SLOTS = 10
@@ -356,25 +372,36 @@ def _night_makeup(amount: float) -> float:
     return NIGHT_PIVOT ** (1.0 - _night_exponent(amount))
 
 
-def _sr_gains(amount: float, custom: bool) -> dict:
+def _sr_gains(amount: float, mode: str = "classic", room: float = 0.25) -> dict:
     """Gains of the sr mixers, input number -> gain.
 
-    Own 3D: 1 the front pair (direct), 2 its cues, 3 the centre, 4 the LFE
-    channel, 5-8 the surround channels; everything but the cues follows the
-    same headroom trim, so the channels stay balanced as the 3D rises.
+    Classic 3D: 1 the front pair (direct), 2 its cues, 3 the centre, 4 the
+    LFE channel, 5-8 the surround channels; everything but the cues follows
+    the same headroom trim, so the channels stay balanced as the 3D rises.
+    A room: 1 the plain downmix, 2 the speakers, 3 their early reflections,
+    4 the room's tail. At zero it is the plain downmix (the mode is off);
+    above, the speakers are always there and the intensity is how much of
+    the room is heard with them, the room's natural amount at the default
+    intensity. The Reverb slider sets the tail on its own, natural at its
+    default.
     Custom HRIR: 1 the plain downmix, 2 the rendered sound, crossfaded."""
-    if custom:
+    if mode in ROOMS:
+        a = _clamp01(amount)
+        if a <= 0.0:
+            return {1: 1.0, 2: 0.0, 3: 0.0, 4: 0.0,
+                    5: 0.0, 6: 0.0, 7: 0.0, 8: 0.0}
+        trim = _db_to_lin(ROOM_TRIM_DB.get(mode, 0.0))
+        early = a / ROOM_NATURAL_AMOUNT
+        late = early * min(ROOM_TAIL_MAX, _clamp01(room) / ROOM_NATURAL_TAIL)
+        return {1: 0.0, 2: trim, 3: early * trim, 4: late * trim,
+                5: 0.0, 6: 0.0, 7: 0.0, 8: 0.0}
+    if mode == "custom":
         a = _clamp01(amount)
         return {1: 1.0 - a, 2: a, 3: 0.0, 4: 0.0,
                 5: 0.0, 6: 0.0, 7: 0.0, 8: 0.0}
     direct, cue = _surround_gains(amount)
     return {1: direct, 2: cue, 3: DOWNMIX_CENTER * direct,
             4: DOWNMIX_LFE * direct, 5: direct, 6: direct, 7: direct, 8: direct}
-
-
-def _ab_gains(bypass: bool) -> dict:
-    """The output mixer: processed sound, or the plain original."""
-    return {"Gain 1": 0.0 if bypass else 1.0, "Gain 2": 1.0 if bypass else 0.0}
 
 
 def _hp_eq_params(eq: dict | None) -> dict:
@@ -487,13 +514,16 @@ class SpatialEngine:
         self._wake = threading.Event()
         self._sender: threading.Thread | None = None
         # Set by the interface from its settings (they belong to the
-        # listener and their headphones, not to presets): which head the 3D
-        # stage uses ("kemar", "sadie" or "custom"), the headphone
-        # correction and whether it is on, and "Original" (A/B).
+        # listener and their headphones, not to presets): the 3D style (see
+        # STYLES), which measured head it uses, and the headphone correction
+        # and whether it is on.
+        self.style = DEFAULT_STYLE
         self.head = DEFAULT_HEAD
+        # the last intensity and Reverb sent, for the room styles' gains
+        self._surround = 0.0
+        self._room = 1.0
         self.hp_eq: dict | None = None
         self.hp_eq_on = True
-        self.bypass = False
         # the nodes of the running graph; changes aimed at any other are
         # dropped (the custom-HRIR graph has no cue mixers, for one)
         self._node_names: set[str] = set()
@@ -503,8 +533,11 @@ class SpatialEngine:
     def custom_hrir(self) -> str:
         return CUSTOM_HRIR_PATH
 
-    def _custom_active(self) -> bool:
-        return self.head == "custom" and os.path.exists(CUSTOM_HRIR_PATH)
+    def _mode(self) -> str:
+        """The 3D style actually in use: "custom" only with a file loaded."""
+        if self.style == "custom":
+            return "custom" if os.path.exists(CUSTOM_HRIR_PATH) else "classic"
+        return self.style if self.style in STYLES else DEFAULT_STYLE
 
     def reconfigure(self, state: EngineState):
         """Rebuild the graph with the current head. The convolvers' files
@@ -621,7 +654,8 @@ class SpatialEngine:
         lo, hi = self._clamp_range(state)
         width = _width_from_surround(state.surround)
         dry, wet = self._ambience_mix(state)
-        custom = self._custom_active()
+        mode = self._mode()
+        self._surround, self._room = state.surround, state.room
 
         def link(a, b):
             links.append({"output": a, "input": b})
@@ -635,7 +669,7 @@ class SpatialEngine:
         inp = {pos: f"{INPUT_NODE[pos]}:Out" for pos in INPUT_POSITIONS}
 
         # The plain stereo downmix a 5.1 / 7.1 source would otherwise get:
-        # what "Original" (A/B) plays, and the dry side of a custom HRIR.
+        # the dry side of a custom HRIR.
         for ch, (side, back) in (("L", ("SL", "RL")), ("R", ("SR", "RR"))):
             nodes.append({"type": "builtin", "name": f"dm{ch}", "label": "mixer",
                           "control": {"Gain 1": 1.0, "Gain 2": DOWNMIX_CENTER,
@@ -648,19 +682,27 @@ class SpatialEngine:
             link(inp[side], f"dm{ch}:In 4")
             link(inp[back], f"dm{ch}:In 5")
 
-        if custom:
+        if mode == "custom":
             self._build_custom_hrir(nodes, link, inp)
+        elif mode in ROOMS:
+            self._build_room(nodes, link, inp, mode)
         else:
             self._build_3d(nodes, link, inp, state, width)
 
-        sr = _sr_gains(state.surround, custom)
+        sr = _sr_gains(state.surround, mode, state.room)
         for ch in CHANNELS:
             nodes.append({"type": "builtin", "name": f"sr{ch}", "label": "mixer",
                           "control": {f"Gain {i}": sr[i] for i in range(1, 9)}})
-        if custom:
+        if mode == "custom":
             for ch in CHANNELS:
                 link(f"dm{ch}:Out", f"sr{ch}:In 1")
                 link(f"hv{ch}:Out", f"sr{ch}:In 2")
+        elif mode in ROOMS:
+            for ch in CHANNELS:
+                link(f"dm{ch}:Out", f"sr{ch}:In 1")
+                link(f"rd{ch}:Out", f"sr{ch}:In 2")
+                link(f"re{ch}:Out", f"sr{ch}:In 3")
+                link(f"rl{ch}:Out", f"sr{ch}:In 4")
         else:
             for ch, near, far in (("L", ("SL", "RL"), ("SR", "RR")),
                                   ("R", ("SR", "RR"), ("SL", "RL"))):
@@ -770,21 +812,17 @@ class SpatialEngine:
                                       "Add": 0.0}})
             link(f"nml{ch}:Out", f"ngc{ch}:In")
 
-            # headphone correction, then the ceiling, then A/B
+            # headphone correction, then the ceiling
             src = self._build_headphone_eq(nodes, link, ch, f"ngc{ch}:Out")
             nodes.append({"type": "builtin", "name": f"lim{ch}", "label": "clamp",
                           "control": {"Min": lo, "Max": hi}})
             link(src, f"lim{ch}:In")
-            nodes.append({"type": "builtin", "name": f"out{ch}", "label": "mixer",
-                          "control": _ab_gains(self.bypass)})
-            link(f"lim{ch}:Out", f"out{ch}:In 1")
-            link(f"dm{ch}:Out", f"out{ch}:In 2")
 
         return {
             "nodes": nodes,
             "links": links,
             "inputs": [f"{INPUT_NODE[pos]}:In" for pos in INPUT_POSITIONS],
-            "outputs": [f"out{ch}:Out" for ch in CHANNELS],
+            "outputs": [f"lim{ch}:Out" for ch in CHANNELS],
         }
 
     def _build_3d(self, nodes, link, inp, state: EngineState, width: float):
@@ -897,6 +935,41 @@ class SpatialEngine:
                                          "gain": HESUVI_GAIN.get(pos, 1.0)}})
                 link(inp[pos], f"{name}:In")
                 link(f"{name}:Out", f"hv{ear}:In {i + 1}")
+
+    def _build_room(self, nodes, link, inp, room: str):
+        """Virtual speakers in a room (see tools/room.py). Every channel is
+        played from its speaker through the measured head -- the direct
+        sound, and apart from it the early reflections off the walls, floor
+        and ceiling, each from its own direction -- and the sum of all of
+        them feeds the room's diffuse tail. The files use the HeSuVi layout,
+        direct sound in channels 0-13 and reflections in 14-27."""
+        head = self.head if self.head in HEADS else DEFAULT_HEAD
+        brir = _data_file(f"room_{head}_{room}.wav")
+        tail = _data_file(f"room_late_{room}.wav")
+        for part in ("rd", "re"):
+            for ch in CHANNELS:
+                nodes.append({"type": "builtin", "name": f"{part}{ch}",
+                              "label": "mixer"})
+        for i, pos in enumerate(INPUT_POSITIONS):
+            for ear, channel in zip(CHANNELS, HESUVI_CHANNELS[pos]):
+                for part, offset in (("rd", 0), ("re", 14)):
+                    name = f"{part}{pos}{ear}"
+                    nodes.append({"type": "builtin", "name": name,
+                                  "label": "convolver",
+                                  "config": {"filename": brir,
+                                             "channel": channel + offset,
+                                             "gain": HESUVI_GAIN.get(pos, 1.0)}})
+                    link(inp[pos], f"{name}:In")
+                    link(f"{name}:Out", f"{part}{ear}:In {i + 1}")
+        nodes.append({"type": "builtin", "name": "rlm", "label": "mixer",
+                      "control": {"Gain 1": 0.5, "Gain 2": 0.5}})
+        link("dmL:Out", "rlm:In 1")
+        link("dmR:Out", "rlm:In 2")
+        for idx, ch in enumerate(CHANNELS):
+            nodes.append({"type": "builtin", "name": f"rl{ch}", "label": "convolver",
+                          "config": {"filename": tail, "channel": idx,
+                                     "gain": 1.0}})
+            link("rlm:Out", f"rl{ch}:In")
 
     def _build_headphone_eq(self, nodes, link, ch, src) -> str:
         """HP_EQ_SLOTS filters of the headphone correction. Each slot is a
@@ -1169,16 +1242,13 @@ context.modules = [
     def set_surround(self, amount: float, state: EngineState | None = None):
         if state is not None:
             state.surround = amount
-        sr = _sr_gains(amount, self._custom_active())
+        self._surround = amount
         self._set_props({"wid:Mult": _width_from_surround(amount) - 1.0} |
-                        {f"sr{ch}:Gain {i}": g
-                         for ch in CHANNELS for i, g in sr.items()})
+                        self._sr_params())
 
-    def set_bypass(self, bypass: bool):
-        """"Original": the plain source, without any processing (A/B)."""
-        self.bypass = bypass
-        self._set_props({f"out{ch}:{k}": v for ch in CHANNELS
-                         for k, v in _ab_gains(bypass).items()})
+    def _sr_params(self) -> dict:
+        sr = _sr_gains(self._surround, self._mode(), self._room)
+        return {f"sr{ch}:Gain {i}": g for ch in CHANNELS for i, g in sr.items()}
 
     def set_hp_eq(self, eq: dict | None, on: bool):
         """Load, clear or switch the headphone correction, live."""
@@ -1195,8 +1265,9 @@ context.modules = [
         amount = _clamp01(amount)
         if state is not None:
             state.room = amount
+        self._room = amount
         self._set_props({f"cue{ch}:Gain {i}": amount
-                         for ch in CHANNELS for i in (1, 2)})
+                         for ch in CHANNELS for i in (1, 2)} | self._sr_params())
 
     def set_eq_enabled(self, enabled: bool, state: EngineState):
         state.eq_enabled = enabled
@@ -1242,7 +1313,8 @@ context.modules = [
         n = _clamp01(state.night)
         dry, wet = self._ambience_mix(state)
         lo, hi = self._clamp_range(state)
-        sr = _sr_gains(state.surround, self._custom_active())
+        self._surround, self._room = state.surround, state.room
+        sr = _sr_gains(state.surround, self._mode(), state.room)
 
         params: dict = {"wid:Mult": _width_from_surround(state.surround) - 1.0}
         for ch in CHANNELS:

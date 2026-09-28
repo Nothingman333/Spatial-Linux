@@ -155,21 +155,6 @@ QPushButton#headChoice {{
     border-radius: 9px;
     font-size: 12px;
 }}
-QPushButton#abButton {{
-    background: {PANEL_LIGHT};
-    border-radius: 17px;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 0;
-    color: {TEXT_DIM};
-}}
-QPushButton#abButton:hover {{
-    color: {TEXT};
-}}
-QPushButton#abButton:pressed {{
-    background: {ACCENT};
-    color: #0b0d12;
-}}
 QPushButton#globe {{
     background: {PANEL_LIGHT};
     border-radius: 17px;
