@@ -260,6 +260,16 @@ _STRINGS = {
                         "Sony kulaklığının kendi ayarı, Sony uygulamasındaki "
                         "gibi. Ortam sesi dışarıyı içeri alır; Kapalı ikisini "
                         "de kapatır."),
+    "sony_level":      ("How much", "Ne kadar"),
+    "sony_voice":      ("Focus on voice", "Sese odaklan"),
+    "sony_voice_tip":  ("Lets voices through more than other sounds",
+                        "Konuşmaları diğer seslerden daha çok içeri alır"),
+    "sony_nc_note":    ("The headphones set the strength of noise cancelling "
+                        "themselves, to your surroundings; they take no "
+                        "setting for it (Sony's app has none either).",
+                        "Gürültü engellemenin gücünü kulaklık ortama göre "
+                        "kendisi ayarlıyor; bunun için bir ayar kabul "
+                        "etmiyor (Sony'nin uygulamasında da yok)."),
     "sony_reading":    ("Reading the headphones…", "Kulaklık okunuyor…"),
     "sony_applying":   ("Sending to the headphones…", "Kulaklığa gönderiliyor…"),
     "sony_failed":     ("The headphones did not answer. Check that they are "

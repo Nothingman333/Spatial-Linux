@@ -1,5 +1,22 @@
 # Changelog
 
+## v2.0.0-beta.5
+
+- **A sound for every noise-cancelling change.** Sony's headphones stay
+  silent when the mode is changed from an app, so Spatial Linux plays its
+  own: a whoosh closing down with two falling notes for noise cancelling,
+  the same whoosh opening up with three rising notes for ambient sound, and
+  two short ticks for off. Made by Spatial Linux itself, no sound files
+  from elsewhere.
+- **Ambient sound strength.** In ambient sound, a slider sets how much of
+  the outside comes in (1–20, as in Sony's app), and **Focus on voice**
+  lets voices through more than other sounds. Both are remembered. Noise
+  cancelling has no strength setting: the headphones adjust it themselves
+  and take no setting for it (Sony's app has none either); the panel says
+  so.
+- **Older releases are kept.** Publishing a new version no longer removes
+  the previous ones; they can be cleared out on purpose later.
+
 ## v2.0.0-beta.4
 
 - **Noise cancelling for Sony headphones.** With Sony headphones connected

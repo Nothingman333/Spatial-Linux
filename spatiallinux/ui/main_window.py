@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
 )
 
 from .. import presets, __version__
-from .. import sony
+from .. import sony, cues
 from .. import engine as engine_mod
 from ..engine import SpatialEngine, EQ_BANDS
 from PyQt6.QtGui import (
@@ -843,6 +843,8 @@ class MainWindow(QMainWindow):
         panel.eqToggled.connect(self._on_hp_eq_toggled)
         panel.eqRemoved.connect(self._remove_hp_eq)
         panel.sonyPicked.connect(self._on_sony_picked)
+        panel.sonyLevel.connect(self._on_sony_level)
+        panel.sonyVoice.connect(self._on_sony_voice)
         panel.open_below(self.hp_btn)
         self._sony_refresh()
 
@@ -878,28 +880,54 @@ class MainWindow(QMainWindow):
             devices.sort(key=lambda d: d["name"] != current)
             for dev in devices:
                 try:
-                    mode = sony.get_mode(dev["address"])
+                    state = sony.get_state(dev["address"])
                 except sony.SonyError as e:
                     if str(e) == "not_sony":
                         continue
                     return dict(dev, mode=None, status="failed")
-                return dict(dev, mode=mode, status=None)
+                # the level and focus on voice as read, else as last set here
+                state.setdefault("level", self.settings.get("sony_level", 20))
+                state.setdefault("voice", self.settings.get("sony_voice", False))
+                return dict(dev, status=None, **state)
             return None
         self._sony_run(work)
 
     def _on_sony_picked(self, mode: str):
-        if not self._sony:
+        self._sony_apply(mode=mode)
+
+    def _on_sony_level(self, level: int):
+        self.settings["sony_level"] = level
+        self._sony_apply(level=level)
+
+    def _on_sony_voice(self, on: bool):
+        self.settings["sony_voice"] = on
+        self._sony_apply(voice=on)
+
+    def _sony_apply(self, **change):
+        """Send the mode, ambient strength and focus on voice, with `change`
+        applied, and confirm a new mode with its sound once the headphones
+        have it."""
+        if not self._sony or self._sony_busy:
             return
-        dev = self._sony
-        self._sony = dict(dev, status="applying")
+        dev = dict(self._sony, **change)
+        dev.setdefault("level", 20)
+        dev.setdefault("voice", False)
+        if dev.get("mode") not in sony.MODES:
+            return
+        new_mode = "mode" in change and change["mode"] != self._sony.get("mode")
+        self._sony = dict(self._sony, status="applying")
         self._show_sony()
 
         def work():
             try:
-                sony.set_mode(dev["address"], mode)
+                sony.set_mode(dev["address"], dev["mode"], dev["level"],
+                              dev["voice"])
             except sony.SonyError:
-                return dict(dev, status="failed")
-            return dict(dev, mode=mode, status=None)
+                return dict(self._sony, status="failed")
+            if new_mode:
+                cues.play(dev["mode"], engine_mod.RUNTIME_DIR,
+                          engine_mod.host_command)
+            return dict(dev, status=None)
         self._sony_run(work)
 
     def _on_sony_result(self, result):

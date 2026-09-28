@@ -35,7 +35,11 @@ SERVICE_UUIDS = ("956C7B26-D49A-4BA8-B03F-B17D393CB6E2",
                  "96CC203E-5068-46AD-B32D-E316F5E069BA")
 
 MODES = ("nc", "ambient", "off")
-AMBIENT_LEVEL = 20            # 1..20, how much of the outside is let in
+# Ambient sound's strength, how much of the outside is let in: 1..20, as
+# in Sony's app. Noise cancelling has no strength in the protocol (nor in
+# Sony's app, for the WH-1000XM5): the headphones set it themselves.
+AMBIENT_MIN, AMBIENT_MAX = 1, 20
+AMBIENT_LEVEL = 20
 
 HEADER, TRAILER, ESCAPE = 0x3E, 0x3C, 0x3D
 T_ACK, T_COMMAND = 0x01, 0x0C
@@ -276,48 +280,72 @@ def _open(address: str) -> _Session:
     return session
 
 
-def set_payload(version: int, mode: str) -> bytes:
+def set_payload(version: int, mode: str, level: int = AMBIENT_LEVEL,
+                voice: bool = False) -> bytes:
     """The ambient-sound-control command. v2 as the WH-1000XM5 takes it
     (Gadgetbridge's form without wind-noise support, which the XM5 lacks);
     v1 as the WH-1000XM3/XM4 take it (with it)."""
     on = mode != "off"
+    level = max(AMBIENT_MIN, min(AMBIENT_MAX, int(level)))
+    focus = 0x01 if voice else 0x00
     if version == 2:
         return bytes([0x68, 0x15, 0x01, 0x01 if on else 0x00,
                       0x01 if mode == "ambient" else 0x00,
-                      0x00, AMBIENT_LEVEL])
+                      focus, level])
     return bytes([0x68, 0x02, 0x11 if on else 0x00, 0x02,
-                  0x02 if mode == "nc" else 0x00, 0x01, 0x00,
-                  0x00 if mode == "nc" else AMBIENT_LEVEL])
+                  0x02 if mode == "nc" else 0x00, 0x01, focus,
+                  0x00 if mode == "nc" else level])
 
 
 def parse_mode(version: int, payload: bytes) -> str | None:
     """The mode from the headphones' reply (v2 only; v1's is not known)."""
+    return parse_state(version, payload).get("mode")
+
+
+def parse_state(version: int, payload: bytes) -> dict:
+    """{mode, level, voice} from the headphones' reply, as much as can be
+    read (v2 only). The layout is the set command's: on, ambient, focus on
+    voice, level."""
     if version != 2 or len(payload) < 5 or payload[1] not in (0x15, 0x17):
-        return None
+        return {}
     if payload[3] == 0x00:
-        return "off"
-    return {0x00: "nc", 0x01: "ambient"}.get(payload[4])
+        mode = "off"
+    else:
+        mode = {0x00: "nc", 0x01: "ambient"}.get(payload[4])
+    state = {"mode": mode}
+    if payload[1] == 0x15 and len(payload) >= 7:
+        state["voice"] = payload[5] == 0x01
+        if AMBIENT_MIN <= payload[6] <= AMBIENT_MAX:
+            state["level"] = payload[6]
+    return state
 
 
-def get_mode(address: str) -> str | None:
+def get_state(address: str) -> dict:
+    """{mode, level, voice} as the headphones report them ({} if they use
+    the older protocol, whose reply is not known)."""
     session = _open(address)
     try:
         if session.version != 2:
-            return None
+            return {}
         reply = session.request(bytes([0x66, 0x15]), want=0x67)
-        return parse_mode(2, reply or b"")
+        return parse_state(2, reply or b"")
     except (OSError, SonyError):
         raise SonyError("connect_failed")
     finally:
         session.sock.close()
 
 
-def set_mode(address: str, mode: str):
+def get_mode(address: str) -> str | None:
+    return get_state(address).get("mode")
+
+
+def set_mode(address: str, mode: str, level: int = AMBIENT_LEVEL,
+             voice: bool = False):
     if mode not in MODES:
         raise ValueError(mode)
     session = _open(address)
     try:
-        session.request(set_payload(session.version, mode))
+        session.request(set_payload(session.version, mode, level, voice))
     except (OSError, SonyError):
         raise SonyError("connect_failed")
     finally:

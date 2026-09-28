@@ -12,6 +12,11 @@ on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      remove_old:
+        description: "Also delete the older releases (kept by default)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -117,7 +122,11 @@ jobs:
       # and their tags go. A beta keeps the newest stable release beside it,
       # so everyone else still has a stable download. The full history stays
       # in CHANGELOG.md.
+      # Older releases stay unless asked for ("Run workflow" -> tick
+      # "Also delete the older releases"); then all but this one and the
+      # latest stable go.
       - name: Remove older releases
+        if: ${{ inputs.remove_old == true }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

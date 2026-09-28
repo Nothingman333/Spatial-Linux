@@ -10,7 +10,7 @@ popup, which closes the moment another window takes the focus).
 from PyQt6.QtCore import Qt, QPoint, QPointF, QRectF, pyqtSignal
 from PyQt6.QtGui import QPainter, QColor, QPen, QPainterPath
 from PyQt6.QtWidgets import (
-    QFrame, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+    QFrame, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QSlider,
 )
 
 from . import theme
@@ -60,6 +60,8 @@ class HeadphonesPanel(QFrame):
     eqToggled = pyqtSignal(bool)
     eqRemoved = pyqtSignal()
     sonyPicked = pyqtSignal(str)          # "nc" / "ambient" / "off"
+    sonyLevel = pyqtSignal(int)           # ambient strength, on release
+    sonyVoice = pyqtSignal(bool)          # focus on voice
 
     WIDTH = 540
 
@@ -157,6 +159,39 @@ class HeadphonesPanel(QFrame):
         box.addWidget(self.sony_heading)
         self.sony_buttons = self._choices(
             box, ("nc", "ambient", "off"), None, "sony", self.sonyPicked.emit)
+
+        # ambient sound's strength and focus on voice -- only in that mode;
+        # noise cancelling has no strength to set (see sony.py)
+        self.sony_ambient_row = QWidget()
+        row = QHBoxLayout(self.sony_ambient_row)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(8)
+        label = QLabel(t("sony_level"))
+        label.setObjectName("subtitle")
+        row.addWidget(label)
+        self.sony_slider = QSlider(Qt.Orientation.Horizontal)
+        self.sony_slider.setRange(1, 20)
+        self.sony_slider.valueChanged.connect(
+            lambda v: self.sony_level_label.setText(str(v)))
+        self.sony_slider.sliderReleased.connect(
+            lambda: self.sonyLevel.emit(self.sony_slider.value()))
+        row.addWidget(self.sony_slider, 1)
+        self.sony_level_label = QLabel("20")
+        self.sony_level_label.setObjectName("subtitle")
+        self.sony_level_label.setFixedWidth(22)
+        row.addWidget(self.sony_level_label)
+        self.sony_voice = QPushButton(t("sony_voice"))
+        self.sony_voice.setObjectName("smallButton")
+        self.sony_voice.setCheckable(True)
+        self.sony_voice.setToolTip(t("sony_voice_tip"))
+        self.sony_voice.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.sony_voice.clicked.connect(lambda on: self.sonyVoice.emit(on))
+        self._keep_width(self.sony_voice)
+        row.addWidget(self.sony_voice)
+        box.addWidget(self.sony_ambient_row)
+        self.sony_nc_note = self._hint(t("sony_nc_note"))
+        box.addWidget(self.sony_nc_note)
+
         self.sony_status = self._hint("")
         box.addWidget(self.sony_status)
         box.addWidget(self._hint(t("sony_hint")))
@@ -172,7 +207,11 @@ class HeadphonesPanel(QFrame):
     def _keep_width(btn: QPushButton):
         """Never squeezed below its own text by a long label beside it."""
         btn.ensurePolished()
-        btn.setMinimumWidth(btn.sizeHint().width())
+        from PyQt6.QtGui import QFontMetrics
+        bold = btn.font()
+        bold.setBold(True)          # checked buttons are drawn bold
+        btn.setMinimumWidth(max(btn.sizeHint().width(),
+                                QFontMetrics(bold).horizontalAdvance(btn.text()) + 24))
 
     @staticmethod
     def _heading(text: str) -> QLabel:
@@ -220,9 +259,19 @@ class HeadphonesPanel(QFrame):
         self.sony_box.setVisible(bool(sony))
         if sony:
             self.sony_heading.setText(f"{t('sony_title')} · {sony['name']}")
+            busy = sony.get("status") in ("reading", "applying")
             for key, btn in self.sony_buttons.items():
                 btn.setChecked(key == sony.get("mode"))
-                btn.setEnabled(sony.get("status") not in ("reading", "applying"))
+                btn.setEnabled(not busy)
+            self.sony_ambient_row.setVisible(sony.get("mode") == "ambient")
+            self.sony_ambient_row.setEnabled(not busy)
+            self.sony_nc_note.setVisible(sony.get("mode") == "nc")
+            if not self.sony_slider.isSliderDown():
+                self.sony_slider.blockSignals(True)
+                self.sony_slider.setValue(int(sony.get("level") or 20))
+                self.sony_slider.blockSignals(False)
+                self.sony_level_label.setText(str(self.sony_slider.value()))
+            self.sony_voice.setChecked(bool(sony.get("voice")))
             status = sony.get("status")
             self.sony_status.setText(t(f"sony_{status}") if status else "")
             self.sony_status.setVisible(bool(status))

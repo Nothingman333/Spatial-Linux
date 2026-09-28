@@ -123,8 +123,17 @@ module:
   or off, then noise cancelling or ambient sound, focus on voice, and the
   ambient level (20 of 20).
 
-It runs in a background thread; the panel shows the mode read from the
-headphones and what is happening. Checked against a simulated headset and
+It runs in a background thread; the panel shows the mode, ambient level
+and focus on voice read from the headphones, and what is happening.
+Noise cancelling itself has no strength field in the command (the
+headphones adapt it on their own), so only ambient sound has a slider.
+
+The headphones announce a mode change made with their button, but not one
+made by an app, so Spatial Linux confirms each change with a short sound of
+its own ([`cues.py`](../spatiallinux/cues.py)): synthesised once with the
+standard library into the data folder (a filtered-noise whoosh whose
+cut-off closes or opens, and soft bell-like notes falling or rising; two
+ticks for off) and played with `pw-play`. Checked against a simulated headset and
 the byte sequences known from Gadgetbridge (the init frame is
 `3e 0c 00 00 00 00 02 00 00 0e 3c`), not yet against every model.
 
