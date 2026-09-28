@@ -245,6 +245,12 @@ under the Apache License 2.0 (see
 [`spatiallinux/data/LICENSE-SADIE-II.txt`](spatiallinux/data/LICENSE-SADIE-II.txt)),
 taken from the copy [OpenAL Soft](https://github.com/kcat/openal-soft) ships.
 
+The interface is set in **Inter** by Rasmus Andersson and The Inter Project
+Authors, under the SIL Open Font License 1.1 (see
+[`spatiallinux/data/fonts/OFL-Inter.txt`](spatiallinux/data/fonts/OFL-Inter.txt));
+the fixed weights shipped are cut from it with
+[`tools/build_fonts.py`](tools/build_fonts.py).
+
 Sony noise cancelling (2.0 beta) talks Sony's headphone protocol as the
 open-source Android app [Gadgetbridge](https://codeberg.org/Freeyourgadget/Gadgetbridge)
 implements it; Spatial Linux has its own implementation of the parts it

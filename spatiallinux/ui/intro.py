@@ -169,8 +169,8 @@ class WelcomeArt(QWidget):
         word = min(1.0, max(0.0, (self._t - 0.5) / 1.1))
         if word > 0:
             we = word * word * (3 - 2 * word)
-            font = QFont("Noto Sans", 30)
-            font.setWeight(QFont.Weight.Black)
+            font = QFont("Inter Display", 30)
+            font.setWeight(QFont.Weight.Bold)
             font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 6 - 3 * we)
             path = QPainterPath()
             path.addText(0, 0, font, "SPATIAL LINUX")
@@ -252,7 +252,7 @@ class StepsArt(QWidget):
                 _node(p, xs[0] + (xs[-1] - xs[0]) * u, cy, 3.0,
                       _accent(230, True))
 
-        font = QFont("Noto Sans", 12)
+        font = QFont("Inter", 12)
         font.setWeight(QFont.Weight.Bold)
         p.setFont(font)
         for k, (x, on) in enumerate(zip(xs, lit)):

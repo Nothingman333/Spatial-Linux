@@ -14,6 +14,7 @@ from . import presets
 
 def main():
     app = QApplication(sys.argv)
+    theme.load_fonts()
     app.setStyleSheet(theme.STYLESHEET)
     app.setApplicationName("Spatial Linux")
     # ties the window to spatiallinux.desktop, so Wayland docks and task

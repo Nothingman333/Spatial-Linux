@@ -207,7 +207,7 @@ class AnimatedArt(QWidget):
 
     def _caption(self, p: QPainter, text: str, alpha: int = 150):
         p.setPen(_accent(alpha))
-        p.setFont(QFont("Noto Sans", 8))
+        p.setFont(QFont("Inter", 8))
         p.drawText(QRectF(0, self.height() - 20, self.width(), 16),
                    Qt.AlignmentFlag.AlignHCenter, text)
 
@@ -476,7 +476,7 @@ class LipsArt(AnimatedArt):
         _halo(p, cx, cy, lw * 2.0, _accent(int(28 * lit), True))
 
         # the words being sung, rising and fading
-        p.setFont(QFont("Noto Sans", 9, QFont.Weight.DemiBold))
+        p.setFont(QFont("Inter", 9, QFont.Weight.DemiBold))
         lyrics = self.LYRICS.get(i18n.language(), self.LYRICS["en"])
         for i, word in enumerate(lyrics):
             t = (self._phase + i / len(lyrics)) % 1.0
@@ -628,7 +628,7 @@ class NightBreathArt(AnimatedArt):
         p.restore()
 
         # what the mode is for, and the breath itself
-        p.setFont(QFont("Noto Sans", 9))
+        p.setFont(QFont("Inter", 9))
         for i, (glyph, key) in enumerate(zip(self.BULLET_GLYPHS,
                                              self.BULLET_KEYS)):
             y = h * 0.30 + i * 26
@@ -639,7 +639,7 @@ class NightBreathArt(AnimatedArt):
             p.drawText(QRectF(42, y - 10, 160, 20),
                        Qt.AlignmentFlag.AlignVCenter, tr(key))
 
-        p.setFont(QFont("Noto Sans", 10))
+        p.setFont(QFont("Inter", 10))
         phrase = tr("breathe_in") if t < 0.35 else tr("breathe_out")
         p.setPen(_accent(int((110 + 110 * abs(breath - 0.5) * 2) * self._shown)))
         p.drawText(QRectF(w - 180, h * 0.24, 160, 22),

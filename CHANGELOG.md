@@ -1,5 +1,28 @@
 # Changelog
 
+## v2.0.0-beta.7
+
+**A new look.** Same app, same controls, same animations; finished more
+carefully.
+
+- **The header is a picture now:** light streaks, sound drawn as a
+  motion-blurred spectrum, dim while Spatial Linux is off and brightening
+  when it is switched on. Over it: today's date, the name large ("Spatial",
+  then "Linux" in bold italic), live status as chips (on or off, the mode
+  and its amount, the output device), volume and pre-amp in glass pills,
+  the five modes as tabs, and one bright power button.
+- **Inter** as the typeface, bundled so it looks the same on every
+  system, with its display cut for large type.
+- **Calmer colours:** a deeper near-black, cards a step lighter with a
+  hairline edge and larger rounding, large sentence-case card titles, and
+  controls as pills: the chosen one white with dark text. The violet is
+  kept for what moves: sliders, the curve, the animations.
+- Thinner sliders with a white handle; rounder, quieter buttons,
+  drop-downs and panels.
+- The window is narrower than before (about 890 px instead of 1040) and
+  the same height.
+- **The noise-cancelling sounds are 60% quieter.**
+
 ## v2.0.0-beta.6
 
 - **Deeper, quieter confirmation sounds.** They were too bright and loud.

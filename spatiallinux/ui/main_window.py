@@ -33,6 +33,7 @@ from .art import BassHeadArt, LipsArt, NightBreathArt, AmbienceArt, FrameTimer
 from .intro import IntroOverlay
 from .mixer import MixerButton, MixerPanel
 from .headphones import HeadphonesButton, HeadphonesPanel
+from .hero import Hero, Chip, Glass, ModeTab, PowerPill
 
 
 LOGO_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)),
@@ -43,14 +44,6 @@ class Panel(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("panel")
-
-
-class FeatureButton(QPushButton):
-    def __init__(self, glyph: str, label: str, parent=None):
-        super().__init__(f"{glyph}\n{label}", parent)
-        self.setObjectName("feature")
-        self.setCheckable(True)
-        self.setMinimumSize(112, 66)
 
 
 class GlobeButton(QPushButton):
@@ -214,70 +207,6 @@ class InfoButton(GlobeButton):
         p.end()
 
 
-class PowerButton(QPushButton):
-    """Power button: a drawn power symbol, with a halo that breathes while
-    the engine is running. The pill sits inset from the widget's edge (see
-    MARGIN and the stylesheet) so the halo has room to glow; drawn past the
-    edge it used to be clipped into a hard square."""
-
-    MARGIN = 6
-
-    def __init__(self, parent=None):
-        super().__init__("", parent)
-        self.setObjectName("power")
-        self.setCheckable(True)
-        self._phase = 0.0
-        self._timer = FrameTimer(self, 33, self._tick)
-        self.toggled.connect(self._on_toggled)
-
-    def _on_toggled(self, on: bool):
-        self._timer.want(on)
-        self.update()
-
-    def showEvent(self, ev):
-        super().showEvent(ev)
-        self._timer.shown(True)
-
-    def hideEvent(self, ev):
-        self._timer.shown(False)
-        super().hideEvent(ev)
-
-    def _tick(self):
-        self._phase = (self._phase + 0.02) % 1.0
-        self.update()
-
-    def paintEvent(self, ev):
-        if self.isChecked():
-            p = QPainter(self)
-            p.setRenderHint(QPainter.RenderHint.Antialiasing)
-            pulse = 0.5 + 0.5 * math.sin(self._phase * 2 * math.pi)
-            p.setPen(Qt.PenStyle.NoPen)
-            m = self.MARGIN
-            pill = QRectF(self.rect()).adjusted(m, m, -m, -m)
-            for ring in range(3):
-                spread = min(m, 1 + ring * 1.5 + 2.5 * pulse)
-                colour = QColor(theme.ACCENT2)
-                colour.setAlpha(int(46 * (1 - ring / 3) * (0.4 + 0.6 * pulse)))
-                p.setBrush(colour)
-                r = pill.adjusted(-spread, -spread, spread, spread)
-                p.drawRoundedRect(r, r.height() / 2, r.height() / 2)
-            p.end()
-        super().paintEvent(ev)
-
-        # the power symbol: a ring open at the top, and a stroke through it
-        p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        pen = QPen(QColor("white") if self.isChecked() else QColor(theme.TEXT))
-        pen.setWidthF(2.2)
-        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        p.setPen(pen)
-        cx, cy, r = self.width() / 2, self.height() / 2 + 1, 8.0
-        # Qt angles run anticlockwise from 3 o'clock: leave 60-120 deg (the top) open
-        p.drawArc(QRectF(cx - r, cy - r, 2 * r, 2 * r), 60 * 16, -300 * 16)
-        p.drawLine(QPointF(cx, cy - r - 2), QPointF(cx, cy - 1))
-        p.end()
-
-
 class MainWindow(QMainWindow):
     BASE_HEIGHT = 560
 
@@ -391,8 +320,7 @@ class MainWindow(QMainWindow):
         outer.setContentsMargins(18, 16, 18, 16)
         outer.setSpacing(12)
 
-        outer.addWidget(self._build_header())
-        outer.addWidget(self._build_feature_row())
+        outer.addWidget(self._build_hero())
 
         self.detail_holder = QWidget()
         self.detail_layout = QVBoxLayout(self.detail_holder)
@@ -402,46 +330,32 @@ class MainWindow(QMainWindow):
         outer.addWidget(self.detail_holder)
 
         self.eq_panel = self._build_eq_panel()
-        self.eq_panel.setMinimumHeight(290)
+        # never less than its own controls need, or they overlap
+        self.eq_panel.setMinimumHeight(
+            max(250, self.eq_panel.layout().minimumSize().height()))
         outer.addWidget(self.eq_panel, 1)
         self._outer_spacing = outer.spacing()
+        # The window's height with no mode panel open: what the header and
+        # the equaliser need, measured rather than assumed, so a different
+        # font or header can never squeeze the mode panel.
+        outer.activate()
+        self.BASE_HEIGHT = max(self.BASE_HEIGHT, outer.minimumSize().height())
 
     # -- header -------------------------------------------------------------
-    def _build_header(self) -> QWidget:
-        header = Panel()
-        lay = QHBoxLayout(header)
-        lay.setContentsMargins(20, 12, 20, 12)
-        lay.setSpacing(10)
+    def _build_hero(self) -> QWidget:
+        """The header: name, live status, the controls used most, and the
+        five modes, over the streak picture (see hero.py)."""
+        hero = self.hero = Hero()
+        lay = QVBoxLayout(hero)
+        lay.setContentsMargins(26, 16, 16, 12)
+        lay.setSpacing(0)
 
-        title_box = QVBoxLayout()
-        title_box.setSpacing(0)
-        title_row = QHBoxLayout()
-        title_row.setSpacing(8)
-        title = QLabel("SPATIAL LINUX")
-        title.setObjectName("title")
-        # Never let the layout squeeze the name: with wider system fonts it
-        # used to be cut down to "SPATIAL LIN".
-        title.ensurePolished()
-        title.setMinimumWidth(
-            title.fontMetrics().horizontalAdvance(title.text()) + 6)
-        title_row.addWidget(title)
-        self.byline = BylineLink("by Sali", self.GITHUB_URL)
-        title_row.addWidget(self.byline, 0, Qt.AlignmentFlag.AlignBottom)
-        title_row.addStretch()
-        title_box.addLayout(title_row)
-        self.subtitle = QLabel(t("subtitle"))
-        self.subtitle.setObjectName("subtitle")
-        title_box.addWidget(self.subtitle)
-        self.version_label = QLabel(f"v{__version__}")
-        self.version_label.setObjectName("version")
-        title_box.addWidget(self.version_label)
-        # the app's logo beside its name
+        # top: logo, date and what the app is, and the round buttons
+        top = QHBoxLayout()
+        top.setSpacing(8)
         logo = QLabel()
         logo.setObjectName("logo")
-        size = 46
-        # Drawn straight from the SVG at the screen's own scale. Asking
-        # QIcon for a pixmap already scaled for the screen and then scaling
-        # it again made it twice too big on HiDPI screens, and cropped.
+        size = 26
         ratio = self.devicePixelRatioF() or 1.0
         pix = QPixmap(round(size * ratio), round(size * ratio))
         pix.fill(Qt.GlobalColor.transparent)
@@ -452,74 +366,17 @@ class MainWindow(QMainWindow):
         pix.setDevicePixelRatio(ratio)
         logo.setPixmap(pix)
         logo.setFixedSize(size, size)
-        lay.addWidget(logo, 0, Qt.AlignmentFlag.AlignVCenter)
-        lay.addLayout(title_box)
-
-        self.power_btn = PowerButton()
-        self.power_btn.setFixedSize(78 + 2 * PowerButton.MARGIN,
-                                    38 + 2 * PowerButton.MARGIN)
-        self.power_btn.setToolTip(t("power_tip"))
-        self.power_btn.clicked.connect(self._on_power_toggled)
-        lay.addWidget(self.power_btn)
-
-        vol_box = QVBoxLayout()
-        vol_box.setSpacing(2)
-        vol_head = self.vol_head = QLabel(t("volume"))
-        vol_head.setObjectName("section")
-        vol_box.addWidget(vol_head)
-        vol_row = QHBoxLayout()
-        vol_row.setSpacing(10)
-        self.volume_slider = QSlider(Qt.Orientation.Horizontal)
-        self.volume_slider.setRange(0, 100)
-        self.volume_slider.setValue(100)
-        self.volume_slider.setFixedWidth(104)
-        self.volume_slider.valueChanged.connect(self._on_volume_changed)
-        vol_row.addWidget(self.volume_slider)
-        self.volume_label = QLabel("100")
-        self.volume_label.setObjectName("subtitle")
-        self.volume_label.setFixedWidth(34)
-        vol_row.addWidget(self.volume_label)
-        vol_box.addLayout(vol_row)
-        lay.addLayout(vol_box)
-
-        pre_box = QVBoxLayout()
-        pre_box.setSpacing(2)
-        pre_head = self.pre_head = QLabel(t("preamp"))
-        pre_head.setObjectName("section")
-        pre_box.addWidget(pre_head)
-        pre_row = QHBoxLayout()
-        pre_row.setSpacing(10)
-        self.preamp_slider = QSlider(Qt.Orientation.Horizontal)
-        self.preamp_slider.setRange(-12, 12)
-        self.preamp_slider.setValue(0)
-        self.preamp_slider.setFixedWidth(88)
-        self.preamp_slider.valueChanged.connect(self._on_preamp_changed)
-        pre_row.addWidget(self.preamp_slider)
-        self.preamp_label = QLabel("0 dB")
-        self.preamp_label.setObjectName("subtitle")
-        self.preamp_label.setFixedWidth(46)
-        pre_row.addWidget(self.preamp_label)
-        pre_box.addLayout(pre_row)
-        lay.addLayout(pre_box)
-
-        lay.addStretch()
-
-        out_box = QVBoxLayout()
-        out_box.setSpacing(2)
-        out_head = self.out_head = QLabel(t("output"))
-        out_head.setObjectName("section")
-        out_head.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self.output_label = QLabel("—")
-        self.output_label.setObjectName("pill")
-        out_box.addWidget(out_head)
-        out_box.addWidget(self.output_label, alignment=Qt.AlignmentFlag.AlignRight)
-        lay.addLayout(out_box)
+        top.addWidget(logo)
+        self.subtitle = QLabel()
+        self.subtitle.setObjectName("heroCaption")
+        top.addWidget(self.subtitle)
+        top.addStretch()
 
         # 3D head and headphone correction, in a drop-down panel
         self.hp_btn = HeadphonesButton()
         self.hp_btn.setToolTip(t("hp_tip"))
         self.hp_btn.clicked.connect(self._open_headphones)
-        lay.addWidget(self.hp_btn, 0, Qt.AlignmentFlag.AlignVCenter)
+        top.addWidget(self.hp_btn)
         self._hp_panel = None
         # Sony noise cancelling: the headphones found, their mode, and what
         # is going on ("reading", "applying", "failed", ...), or None
@@ -534,52 +391,157 @@ class MainWindow(QMainWindow):
         self.mixer_btn = MixerButton()
         self.mixer_btn.setToolTip(t("mixer_tip"))
         self.mixer_btn.clicked.connect(self._open_mixer)
-        lay.addWidget(self.mixer_btn, 0, Qt.AlignmentFlag.AlignVCenter)
+        top.addWidget(self.mixer_btn)
         self._mixer = None
 
         self.lang_btn = GlobeButton()
         self.lang_btn.setToolTip(t("language_tip"))
         self.lang_btn.clicked.connect(self._toggle_language)
-        lay.addWidget(self.lang_btn, 0, Qt.AlignmentFlag.AlignVCenter)
+        top.addWidget(self.lang_btn)
 
         self.info_btn = InfoButton()
         self.info_btn.setToolTip(t("info_tip"))
         self.info_btn.clicked.connect(lambda: self._show_intro())
-        lay.addWidget(self.info_btn, 0, Qt.AlignmentFlag.AlignVCenter)
+        top.addWidget(self.info_btn)
+        lay.addLayout(top)
+        lay.addSpacing(8)
 
-        return header
+        # the name, large: "Spatial", then "Linux" in bold italic
+        title = QLabel("Spatial")
+        title.setObjectName("heroTitle")
+        lay.addWidget(title)
+        name_row = QHBoxLayout()
+        name_row.setSpacing(12)
+        linux = QLabel("Linux")
+        linux.setObjectName("heroTitleItalic")
+        # never let the layout squeeze the name
+        linux.ensurePolished()
+        linux.setMinimumWidth(linux.fontMetrics().horizontalAdvance("Linux") + 12)
+        name_row.addWidget(linux, 0, Qt.AlignmentFlag.AlignBottom)
+        self.byline = BylineLink("by Sali", self.GITHUB_URL)
+        name_row.addWidget(self.byline, 0, Qt.AlignmentFlag.AlignBottom)
+        self.version_label = QLabel(f"v{__version__}")
+        self.version_label.setObjectName("version")
+        name_row.addWidget(self.version_label, 0, Qt.AlignmentFlag.AlignBottom)
+        name_row.addStretch()
+        lay.addLayout(name_row)
+        lay.addSpacing(8)
 
-    # -- feature row -------------------------------------------------------
-    def _build_feature_row(self) -> QWidget:
-        panel = Panel()
-        lay = QVBoxLayout(panel)
-        lay.setContentsMargins(16, 10, 16, 10)
-        lay.setSpacing(6)
+        # live status, as chips: on or off, the mode and its amount, the
+        # device the sound ends up on
+        chips = QHBoxLayout()
+        chips.setSpacing(8)
+        self.status_chip = Chip()
+        chips.addWidget(self.status_chip)
+        self.mode_chip = Chip()
+        chips.addWidget(self.mode_chip)
+        self.output_chip = Chip()
+        chips.addWidget(self.output_chip)
+        # the old header's labels live on inside the output chip
+        self.out_head = self.output_chip.label
+        self.output_label = self.output_chip.value
+        self.out_head.setText(t("output_chip"))
+        chips.addStretch()
+        vol = Glass()
+        self.vol_head = QLabel(t("volume_short"))
+        self.vol_head.setObjectName("glassLabel")
+        vol.row.addWidget(self.vol_head)
+        self.volume_slider = QSlider(Qt.Orientation.Horizontal)
+        self.volume_slider.setRange(0, 100)
+        self.volume_slider.setValue(100)
+        self.volume_slider.setFixedWidth(96)
+        self.volume_slider.valueChanged.connect(self._on_volume_changed)
+        vol.row.addWidget(self.volume_slider)
+        self.volume_label = QLabel("100")
+        self.volume_label.setObjectName("glassValue")
+        self.volume_label.setFixedWidth(26)
+        vol.row.addWidget(self.volume_label)
+        chips.addWidget(vol)
+        chips.addSpacing(6)
 
-        row = QHBoxLayout()
-        row.setSpacing(10)
+        pre = Glass()
+        self.pre_head = QLabel(t("preamp_short"))
+        self.pre_head.setObjectName("glassLabel")
+        pre.row.addWidget(self.pre_head)
+        self.preamp_slider = QSlider(Qt.Orientation.Horizontal)
+        self.preamp_slider.setRange(-12, 12)
+        self.preamp_slider.setValue(0)
+        self.preamp_slider.setFixedWidth(76)
+        self.preamp_slider.valueChanged.connect(self._on_preamp_changed)
+        pre.row.addWidget(self.preamp_slider)
+        self.preamp_label = QLabel("+0 dB")
+        self.preamp_label.setObjectName("glassValue")
+        self.preamp_label.setFixedWidth(42)
+        pre.row.addWidget(self.preamp_label)
+        chips.addWidget(pre)
+        chips.addSpacing(6)
+
+        lay.addLayout(chips)
+        lay.addStretch(1)
+        lay.addSpacing(8)
+
+        # bottom: the modes as tabs, then volume, pre-amp and power
+        bottom = QHBoxLayout()
+        bottom.setSpacing(4)
         self.feature_buttons = {}
         for key, glyph in self.FEATURES:
-            btn = FeatureButton(glyph, t(key))
+            btn = ModeTab(glyph, t(key))
+            btn.setToolTip(t("one_mode_note"))
             btn.clicked.connect(lambda _c, k=key: self._on_feature_clicked(k))
-            row.addWidget(btn)
+            bottom.addWidget(btn)
             self.feature_buttons[key] = btn
-        lay.addLayout(row)
+        # kept for the language switch; its text is now the tabs' tooltip
+        self.mode_note = QLabel()
+        bottom.addStretch()
 
-        note = self.mode_note = QLabel(t("one_mode_note"))
-        note.setObjectName("subtitle")
-        lay.addWidget(note)
-        return panel
+        self.power_btn = PowerPill()
+        self.power_btn.setTexts(t("power_off"), t("power_on"))
+        self.power_btn.setToolTip(t("power_tip"))
+        self.power_btn.clicked.connect(self._on_power_toggled)
+        self.power_btn.toggled.connect(lambda on: (self.hero.set_active(on),
+                                                   self._refresh_chips()))
+        bottom.addWidget(self.power_btn)
+        lay.addLayout(bottom)
+
+        self._refresh_caption()
+        return hero
+
+    def _refresh_caption(self):
+        """Today's date and what the app is, above the name."""
+        from PyQt6.QtCore import QDate, QLocale
+        locale = QLocale(QLocale.Language.Turkish if i18n.language() == "tr"
+                         else QLocale.Language.English)
+        date = locale.toString(QDate.currentDate(), "dddd, d MMMM")
+        self.subtitle.setText(f"{date}  ·  {t('subtitle')}")
+
+    def _refresh_chips(self):
+        """On or off; the mode engaged and how much; where the sound goes."""
+        if not hasattr(self, "status_chip"):
+            return
+        on = self.power_btn.isChecked()
+        self.status_chip.set(t("chip_on") if on else t("chip_off"), "",
+                             theme.OK if on else theme.TEXT_FAINT)
+        key = self._active_key()
+        if key:
+            value = self._remembered.get(key, 0.0)
+            if key in ("surround", "ambience", "night"):
+                amount = f"{round(value * 100)}%"
+            else:
+                amount = f"+{value:.0f} dB" if value else "0 dB"
+            glyph = dict(self.FEATURES)[key]
+            self.mode_chip.set(f"{glyph}  {t(key)}", amount)
+        else:
+            self.mode_chip.set(t("chip_no_mode"))
 
     # -- EQ panel -----------------------------------------------------------
     def _build_eq_panel(self) -> QWidget:
         panel = Panel()
         lay = QVBoxLayout(panel)
-        lay.setContentsMargins(20, 14, 20, 16)
+        lay.setContentsMargins(24, 18, 24, 18)
 
         top = QHBoxLayout()
-        label = self.eq_head = QLabel(t("equaliser"))
-        label.setObjectName("section")
+        label = self.eq_head = QLabel(t("equaliser_title"))
+        label.setObjectName("cardTitle")
         top.addWidget(label)
         top.addStretch()
 
@@ -699,6 +661,7 @@ class MainWindow(QMainWindow):
             btn.setProperty("active", on)
             btn.style().unpolish(btn)
             btn.style().polish(btn)
+        self._refresh_chips()
 
     # -- state <-> widgets --------------------------------------------------
     def _adopt_state(self, state):
@@ -765,16 +728,16 @@ class MainWindow(QMainWindow):
 
     def _retranslate(self):
         """Re-label everything in place; no restart, nothing loses its value."""
-        self.subtitle.setText(t("subtitle"))
-        self.vol_head.setText(t("volume"))
-        self.pre_head.setText(t("preamp"))
-        self.out_head.setText(t("output"))
+        self._refresh_caption()
+        self.vol_head.setText(t("volume_short"))
+        self.pre_head.setText(t("preamp_short"))
+        self.out_head.setText(t("output_chip"))
         self.lang_btn.setToolTip(t("language_tip"))
         self.info_btn.setToolTip(t("info_tip"))
         self.mixer_btn.setToolTip(t("mixer_tip"))
         self.hp_btn.setToolTip(t("hp_tip"))
         self.mode_note.setText(t("one_mode_note"))
-        self.eq_head.setText(t("equaliser"))
+        self.eq_head.setText(t("equaliser_title"))
         self.eq_hint.setText(t("eq_hint"))
         self.save_btn.setText(t("save"))
         self.eq_reset_btn.setText(t("reset_eq"))
@@ -785,13 +748,16 @@ class MainWindow(QMainWindow):
         self.eq_btn.setToolTip(t("eq_tip"))
         self.status_label.setText(t("status_on") if self.engine.running
                                   else t("status_off"))
-        for key, glyph in self.FEATURES:
-            self.feature_buttons[key].setText(f"{glyph}\n{t(key)}")
+        for key, _glyph in self.FEATURES:
+            self.feature_buttons[key].setLabel(t(key))
+            self.feature_buttons[key].setToolTip(t("one_mode_note"))
         if self._active_key():
             self._open_panel(self._active_key())   # rebuild with new labels
         self._refresh_output_label()
         self._fill_presets(self.preset_combo.currentData())
         self.power_btn.setToolTip(t("power_tip"))
+        self.power_btn.setTexts(t("power_off"), t("power_on"))
+        self._refresh_chips()
 
     def _active_key(self):
         return self.state.active if self.state.active in self.FEATURE_KEYS else None
@@ -1164,6 +1130,7 @@ class MainWindow(QMainWindow):
         self._remembered[key] = value
         if self.state.active == key:
             self._apply_amount(key, value)
+        self._refresh_chips()
 
     def _on_treble_changed(self, key: str, value: float):
         self._remembered[f"{key}_treble"] = value

@@ -11,6 +11,14 @@ _STRINGS = {
     "volume":          ("VOLUME", "SES"),
     "preamp":          ("PRE-AMP", "PRE-AMP"),
     "output":          ("OUTPUT", "ÇIKIŞ"),
+    "output_chip":     ("Output", "Çıkış"),
+    "volume_short":    ("Volume", "Ses"),
+    "preamp_short":    ("Pre-amp", "Pre-amp"),
+    "power_on":        ("On", "Açık"),
+    "power_off":       ("Off", "Kapalı"),
+    "chip_on":         ("Running", "Çalışıyor"),
+    "chip_off":        ("Off", "Kapalı"),
+    "chip_no_mode":    ("No mode", "Mod yok"),
     "unknown_output":  ("Unknown", "Bilinmiyor"),
 
     "surround":        ("3D Surround", "3D Surround"),
@@ -25,6 +33,7 @@ _STRINGS = {
                         "öncekinin efekti tamamen kapanır"),
 
     "equaliser":       ("EQUALISER", "EKOLAYZIR"),
+    "equaliser_title": ("Equaliser", "Ekolayzır"),
     "eq_hint":         ("drag a point · double-click to reset",
                         "noktayı sürükle · çift tıkla sıfırla"),
     "save":            ("Save", "Kaydet"),

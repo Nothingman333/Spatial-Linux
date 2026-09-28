@@ -10,8 +10,8 @@ from . import theme
 from .i18n import t
 from .art import SphereArt
 
-PANEL_HEIGHT = 170
-ART_PANEL_HEIGHT = 330
+PANEL_HEIGHT = 186
+ART_PANEL_HEIGHT = 352
 
 
 TOGGLE_WIDTH = 58
@@ -49,11 +49,11 @@ class FeaturePanel(QFrame):
         self.setObjectName("panel")
         self.setFixedHeight(PANEL_HEIGHT)
         self._outer = QVBoxLayout(self)
-        self._outer.setContentsMargins(20, 14, 20, 14)
+        self._outer.setContentsMargins(24, 16, 24, 16)
 
         row = QHBoxLayout()
         label = QLabel(title)
-        label.setObjectName("section")
+        label.setObjectName("cardTitle")
         row.addWidget(label)
         row.addStretch()
         self._header_row = row
@@ -63,7 +63,7 @@ class FeaturePanel(QFrame):
         return self._outer
 
     # height one extra slider row adds to the panel
-    ROW_HEIGHT = 34
+    ROW_HEIGHT = 36
     # panels where some rows have an On / Off switch leave that space in the
     # others too, so every value lines up
     ALIGN_TOGGLES = False
@@ -202,7 +202,7 @@ class SurroundPanel(FeaturePanel):
     def __init__(self, amount: float, lfe: float = 0.0, lfe_on: bool = True,
                  parent=None):
         super().__init__("3D Surround", parent)
-        self.setFixedHeight(340)
+        self.setFixedHeight(338)
 
         self._header_row.addWidget(QLabel(t("intensity")))
         self.slider = QSlider(Qt.Orientation.Horizontal)

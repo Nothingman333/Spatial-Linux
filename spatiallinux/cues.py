@@ -28,8 +28,10 @@ import threading
 import wave
 
 SR = 48000
-PEAK = 0.21                      # about -14 dBFS: a hint, not an alarm
-VERSION = 2                      # bump when the sounds change
+# about -22 dBFS: a hint, not an alarm. (0.35 at first, then 0.21; both
+# were found too loud -- this is 60% below the second.)
+PEAK = 0.084
+VERSION = 3                      # bump when the sounds change
 
 
 def _tone(freq: float, start: float, length: float, level: float,

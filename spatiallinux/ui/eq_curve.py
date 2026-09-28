@@ -24,7 +24,7 @@ class EQCurve(QWidget):
         super().__init__(parent)
         self.bands = bands
         self.gains = list(gains) if gains else [0.0] * len(bands)
-        self.setMinimumHeight(190)
+        self.setMinimumHeight(156)
         self.setMouseTracking(True)
         self._drag_index = None
         self._hover_index = None
@@ -204,7 +204,7 @@ class EQCurve(QWidget):
 
         # frequency labels
         p.setPen(QColor(theme.TEXT_DIM))
-        p.setFont(QFont("Noto Sans", 8))
+        p.setFont(QFont("Inter", 8))
         for i, freq in enumerate(self.bands):
             x = pts[i].x() if pts else 0
             p.drawText(QRectF(x - 20, rect.bottom() + 6, 40, 16),
@@ -214,7 +214,7 @@ class EQCurve(QWidget):
         idx = self._drag_index if self._drag_index is not None else self._hover_index
         if idx is not None:
             p.setPen(QColor(theme.TEXT))
-            p.setFont(QFont("Noto Sans", 9, QFont.Weight.DemiBold))
+            p.setFont(QFont("Inter", 9, QFont.Weight.DemiBold))
             pt = pts[idx]
             txt = f"{self.gains[idx]:+.1f} dB"
             p.drawText(QRectF(pt.x() - 30, pt.y() - 24, 60, 16),

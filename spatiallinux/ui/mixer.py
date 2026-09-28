@@ -228,7 +228,11 @@ class MixerPanel(QFrame):
         proc.start(cmd[0], cmd[1:])
 
     def _failed(self, proc):
-        if proc.error() == QProcess.ProcessError.FailedToStart:
+        try:
+            failed = proc.error() == QProcess.ProcessError.FailedToStart
+        except RuntimeError:          # the app closed while it was running
+            return
+        if failed:
             self._proc = None
             self._show([], t("mixer_no_tools"))
 
