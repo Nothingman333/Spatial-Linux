@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.0.0-beta.13
+
+- **Drop-downs are frosted the same all over.** They were grey and dark
+  over the left of the header and purple over its bright streaks; now the
+  window behind is blurred, drained of colour and shown at half strength
+  under one dark tint, so the whole panel looks like its dark corner.
+
 ## v2.0.0-beta.12
 
 - **Noise cancelling is back on the main window**, in its glass card in

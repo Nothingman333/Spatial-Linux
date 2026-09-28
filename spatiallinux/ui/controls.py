@@ -23,7 +23,7 @@ from PyQt6.QtCore import (
 )
 from PyQt6.QtGui import (
     QPainter, QColor, QPainterPath, QLinearGradient, QPen, QPixmap,
-    QFontMetrics, QRadialGradient,
+    QFontMetrics, QRadialGradient, QImage,
 )
 from PyQt6.QtWidgets import (
     QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QFrame,
@@ -481,7 +481,16 @@ class GlassPopup(QFrame):
             return
         grabbed = src.grab(rect)
         # strongly frosted: shapes behind show only as soft colour
-        self._bg = blur(grabbed, 48)
+        # One even frost wherever it sits: blurred, then drained of colour
+        # and brought to one brightness, so over the bright streaks it looks
+        # like it does over the dark side of the header, not purple there
+        # and grey here.
+        soft = blur(grabbed, 48).toImage().convertToFormat(
+            QImage.Format.Format_Grayscale8).convertToFormat(
+            QImage.Format.Format_ARGB32_Premultiplied)
+        bg = QPixmap.fromImage(soft)
+        bg.setDevicePixelRatio(grabbed.devicePixelRatio())
+        self._bg = bg
         self._bg_rect = rect.translated(-top_left)
         self.update()
 
@@ -528,9 +537,12 @@ class GlassPopup(QFrame):
         # base, for any part hanging past the window's edge
         p.fillRect(self.rect(), QColor(19, 17, 26, 238))
         if self._bg is not None:
+            # half strength: light behind shows as a soft glow, not a shape
+            p.setOpacity(min(1.0, u * 1.6) * 0.5)
             p.drawPixmap(self._bg_rect.topLeft(), self._bg)
-        # tint: dark enough to read on, light enough to see through
-        p.fillRect(self.rect(), QColor(17, 15, 24, 150))
+            p.setOpacity(min(1.0, u * 1.6))
+        # tint: the dark of the header's left side, a trace of violet
+        p.fillRect(self.rect(), QColor(20, 18, 28, 170))
         sheen = QLinearGradient(0, 0, 0, self.height())
         sheen.setColorAt(0.0, QColor(255, 255, 255, 20))
         sheen.setColorAt(0.35, QColor(255, 255, 255, 6))
