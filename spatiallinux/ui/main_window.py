@@ -35,6 +35,7 @@ from .mixer import MixerButton, MixerPanel
 from .headphones import HeadphonesButton, HeadphonesPanel
 from .hero import Hero, Chip, Glass, ModeTab, PowerPill
 from .controls import ChoiceStrip, GlassIconButton, GlassPopup
+from .noise import NoiseCard
 
 
 LOGO_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)),
@@ -444,7 +445,8 @@ class MainWindow(QMainWindow):
         lay.addLayout(top)
         lay.addSpacing(2)
 
-        # the name, large: "Spatial", then "Linux" in bold italic
+        # the name, large: "Spatial", then "Linux" in bold italic -- and
+        # on the right, noise cancelling, once headphones for it answer
         middle = QHBoxLayout()
         middle.setSpacing(16)
         name = QVBoxLayout()
@@ -469,6 +471,18 @@ class MainWindow(QMainWindow):
         name_row.addStretch()
         name.addLayout(name_row)
         middle.addLayout(name, 1)
+        # its place is kept while it is hidden, so the window never jumps
+        slot = QWidget()
+        slot.setFixedSize(NoiseCard.WIDTH, NoiseCard.HEIGHT)
+        slot_lay = QVBoxLayout(slot)
+        slot_lay.setContentsMargins(0, 0, 0, 0)
+        self.noise_card = NoiseCard()
+        slot_lay.addWidget(self.noise_card)
+        self.noise_card.picked.connect(self._on_sony_picked)
+        self.noise_card.level.connect(self._on_sony_level)
+        self.noise_card.voice.connect(self._on_sony_voice)
+        self.noise_card.retry.connect(lambda: self._sony_refresh(force=True))
+        middle.addWidget(slot, 0, Qt.AlignmentFlag.AlignBottom)
         lay.addLayout(middle)
         lay.addSpacing(12)
 
@@ -538,6 +552,7 @@ class MainWindow(QMainWindow):
 
         self.power_btn = PowerPill()
         self.power_btn.setTexts(t("power_off"), t("power_on"))
+        self.noise_card.retranslate()
         self.power_btn.setToolTip(t("power_tip"))
         self.power_btn.clicked.connect(self._on_power_toggled)
         self.power_btn.toggled.connect(self.hero.set_active)
@@ -551,6 +566,7 @@ class MainWindow(QMainWindow):
                   self.lang_btn, self.info_btn,
                   self.output_chip, vol, pre, self.power_btn):
             hero.add_glass(w)
+        hero.add_glass(self.noise_card, 18.0)
         for btn in self.feature_buttons.values():
             hero.add_glass(btn)
         return hero
@@ -774,6 +790,7 @@ class MainWindow(QMainWindow):
         self._fill_presets(self.preset_combo.currentData())
         self.power_btn.setToolTip(t("power_tip"))
         self.power_btn.setTexts(t("power_off"), t("power_on"))
+        self.noise_card.retranslate()
 
     def _active_key(self):
         return self.state.active if self.state.active in self.FEATURE_KEYS else None
@@ -843,9 +860,6 @@ class MainWindow(QMainWindow):
         panel.eqRemoved.connect(self._remove_hp_eq)
         panel.sonyDevice.connect(self._on_sony_device)
         panel.sonyRetry.connect(lambda: self._sony_refresh(force=True))
-        panel.sonyPicked.connect(self._on_sony_picked)
-        panel.sonyLevel.connect(self._on_sony_level)
-        panel.sonyVoice.connect(self._on_sony_voice)
         panel.open_below(self.hp_btn)
         # as before 2.0 beta 8: opening the panel looks again if nothing
         # has been found yet (at most every half minute)
@@ -1002,9 +1016,13 @@ class MainWindow(QMainWindow):
         self._show_sony()
 
     def _show_sony(self):
-        """Noise cancelling lives in the headphones panel (as up to 2.0
-        beta 7): its controls only for headphones that have answered, and
-        which headphones, and what is going on, always."""
+        """The card on the main window only for headphones that have
+        answered (their mode need not be known: some never say it); the
+        headphones panel says which headphones and what is going on, and
+        lets them be picked."""
+        state = self._sony
+        confirmed = bool(state and state.get("confirmed"))
+        self.noise_card.set_sony(state if confirmed else None)
         panel = self._hp_panel
         if panel is not None and panel.isVisible():
             panel.set_nc(self._nc_status())

@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.0.0-beta.12
+
+- **Noise cancelling is back on the main window**, in its glass card in
+  the header, now that it works: it appears once the headphones have
+  answered (their current mode need not be known -- the WH-1000XM5 never
+  says it, so no mode shows as picked until you choose one). The
+  headphones panel keeps the choice of headphones and what is going on.
+
 ## v2.0.0-beta.11
 
 - **Noise cancelling works again with the WH-1000XM5.** The log showed
