@@ -339,7 +339,7 @@ light streaks that flows: far streaks drifting slowly, near ones faster,
 sparks falling through them, a bloom that sways and a band of light that
 sweeps across now and then. Each layer is drawn once per size, seamless at
 its ends, and then only slid along; a frame costs about 1 ms of drawing,
-and the header runs at 22 fps, faster-flowing while Spatial Linux is on.
+and the header runs at 30 fps, faster-flowing while Spatial Linux is on.
 The glass controls on it are frosted for real: each frame the same layers
 are also composed at a quarter of the size, blurred, and painted inside
 each glass shape before the control draws itself.
@@ -351,9 +351,19 @@ new choice, its leading edge leaving first and the trailing edge catching
 up, and each option's text darkens exactly as far as the thumb covers it.
 
 **The drop-downs** are frosted glass too: the window behind them is read
-about a dozen times a second while one is open, blurred, tinted and drawn
-as its background, so what moves behind keeps moving. They grow and fade
-in as they open.
+once as they open, blurred, tinted and drawn as their background. (Reading
+it again while open kept the moving picture moving behind the glass, but
+each read redrew everything under it and held up the other animations.)
+They grow and fade in as they open.
+
+**One clock.** Every animation -- the header, the mode scenes, the byline,
+the power button -- runs on one shared timer, so everything that moves is
+updated in the same moment and painted in one pass; with a timer each, they
+ticked out of step and the window was repainted several times a frame, at
+uneven moments, which showed as stutter. Motion is worked out from the real
+time since the last frame, so a late frame does not make it hop, and the
+header's layers are placed to a fraction of a pixel, so a slow drift does
+not move in one-pixel steps.
 
 Qt has no bloom filter; the glow is made the way it is in vector art, by
 drawing the same shape in progressively wider and fainter passes and laying

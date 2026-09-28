@@ -128,10 +128,10 @@ QFrame#glassCard {{
     border-radius: 18px;
 }}
 QLabel#cardCaption {{
-    color: rgba(255, 255, 255, 0.78);
-    font-size: 10px;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 12px;
     font-weight: 600;
-    letter-spacing: 0.8px;
+    letter-spacing: 0.3px;
 }}
 QLabel#cardDevice {{
     color: rgba(255, 255, 255, 0.45);

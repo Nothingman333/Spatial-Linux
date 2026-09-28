@@ -54,7 +54,7 @@ FAR_SPEED = 9.0
 NEAR_SPEED = 24.0
 GLINT_FALL = 13.0
 OFF_SPEED = 0.35
-FRAME_MS = 45
+FRAME_MS = 33
 FROST_SCALE = 4
 
 
@@ -277,6 +277,9 @@ class _Layers:
         far_x, near_x, fall = self.offsets(t)
         w, h = self.w, self.h
         p.save()
+        # placed to a fraction of a pixel: snapped to whole pixels, a slow
+        # drift moves in visible one-pixel hops
+        p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         p.setOpacity(level)
         p.setCompositionMode(QPainter.CompositionMode.CompositionMode_Plus)
         _tile(p, self.far, far_x, 0, w, h)
@@ -350,8 +353,9 @@ class Hero(QFrame):
     def _tick(self):
         # speed eases toward its target, so switching on the light gathers
         # pace rather than jumping
-        self._speed += (self._target_speed - self._speed) * 0.04
-        self._t += FRAME_MS / 1000.0 * self._speed
+        dt = self._timer.elapsed()
+        self._speed += (self._target_speed - self._speed) * min(1.0, dt * 1.2)
+        self._t += dt * self._speed
         self.update()
 
     def showEvent(self, ev):
@@ -497,7 +501,7 @@ class PowerPill(QPushButton):
         self._fill = 0.0
         self._hover = 0.0
         from .art import FrameTimer
-        self._timer = FrameTimer(self, 40, self._tick)
+        self._timer = FrameTimer(self, 33, self._tick)
         self._flood = QVariantAnimation(self)
         self._flood.setDuration(520)
         self._flood.setEasingCurve(QEasingCurve.Type.InOutCubic)
@@ -566,7 +570,7 @@ class PowerPill(QPushButton):
         super().hideEvent(ev)
 
     def _tick(self):
-        self._phase = (self._phase + 0.018) % 1.0
+        self._phase = (self._phase + self._timer.elapsed() * 0.45) % 1.0
         self.update()
 
     def _content(self, p: QPainter, text: QColor, icon: QColor):

@@ -1,5 +1,26 @@
 # Changelog
 
+## v2.0.0-beta.9
+
+- **Smoother animations.** Every animation now runs on one shared clock,
+  so everything that moves is updated together and painted in one pass;
+  before, each had its own timer, they ticked out of step and the window
+  was repainted several times a frame at uneven moments -- the hitches.
+  Motion follows the real time since the last frame (a late frame no
+  longer makes it hop), the header's light is placed to a fraction of a
+  pixel (no more one-pixel steps in the slow drift) and runs at 30 fps,
+  and the mode scenes run at 30 fps too.
+- **No more pauses while a drop-down is open:** its frosted background is
+  read once as it opens, instead of redrawing the window under it a dozen
+  times a second.
+- **Noise cancelling finds the headphones again.** The look-up now waits
+  until the sound is set up after start, and a failed attempt is tried
+  again on its own (after 3, 8 and 20 seconds) before the card says it
+  could not reach them; "Try again" makes one more attempt. Hovering the
+  message shows what the system reported.
+- **Tidier header:** the card shows just the headphones' name, and the
+  "Output" chip is gone.
+
 ## v2.0.0-beta.8
 
 **Motion and glass.** The same app, livelier and lighter to the eye.

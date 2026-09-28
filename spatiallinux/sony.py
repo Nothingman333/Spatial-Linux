@@ -49,7 +49,13 @@ _channels: dict[str, int] = {}
 
 
 class SonyError(Exception):
-    """Something the listener should be told, in words."""
+    """Something the listener should be told, in words. str() is the code
+    ("connect_failed", ...); `detail` says what the system reported, for a
+    tooltip."""
+
+    def __init__(self, code: str, detail: str = ""):
+        super().__init__(code)
+        self.detail = detail
 
 
 def available() -> bool:
@@ -292,15 +298,15 @@ def _open_once(address: str) -> _Session:
     s.settimeout(TIMEOUT)
     try:
         s.connect((address, channel))
-    except OSError:
+    except OSError as e:
         s.close()
-        raise SonyError("connect_failed")
+        raise SonyError("connect_failed", f"RFCOMM {channel}: {e}")
     session = _Session(s)
     try:
         session.init()
-    except (OSError, SonyError):
+    except (OSError, SonyError) as e:
         s.close()
-        raise SonyError("connect_failed")
+        raise SonyError("connect_failed", f"init: {str(e) or type(e).__name__}")
     _channels[address] = channel
     return session
 
@@ -354,8 +360,8 @@ def get_state(address: str) -> dict:
             return {}
         reply = session.request(bytes([0x66, 0x15]), want=0x67)
         return parse_state(2, reply or b"")
-    except (OSError, SonyError):
-        raise SonyError("connect_failed")
+    except (OSError, SonyError) as e:
+        raise SonyError("connect_failed", f"read: {str(e) or type(e).__name__}")
     finally:
         session.sock.close()
 
@@ -371,7 +377,7 @@ def set_mode(address: str, mode: str, level: int = AMBIENT_LEVEL,
     session = _open(address)
     try:
         session.request(set_payload(session.version, mode, level, voice))
-    except (OSError, SonyError):
-        raise SonyError("connect_failed")
+    except (OSError, SonyError) as e:
+        raise SonyError("connect_failed", f"set: {str(e) or type(e).__name__}")
     finally:
         session.sock.close()

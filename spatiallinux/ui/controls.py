@@ -12,8 +12,7 @@ pop-ups.
 * GlassIconButton -- the round buttons in the header, with a hover that
   eases in and out.
 * GlassPopup -- a drop-down whose background is the window behind it,
-  blurred and tinted, refreshed while it is open so the moving picture and
-  animations keep showing through; it fades and grows in when it opens.
+  blurred and tinted; it fades and grows in when it opens.
 """
 
 from __future__ import annotations
@@ -436,9 +435,8 @@ class GlassPopup(QFrame):
     """A drop-down of frosted glass. Build the content in `self.body`.
 
     Its background is the window underneath, blurred, tinted dark and lit
-    from the top edge; it is re-read a dozen times a second while open, so
-    what moves behind it keeps moving. Opening, the glass grows in from a
-    little smaller and the content fades up."""
+    from the top edge. Opening, the glass grows in from a little smaller
+    and the content fades up."""
 
     RADIUS = 20.0
     BACKDROP_MS = 85
@@ -488,8 +486,10 @@ class GlassPopup(QFrame):
 
     def showEvent(self, ev):
         super().showEvent(ev)
+        # read once, as it opens: re-reading the window while open meant
+        # redrawing everything under it a dozen times a second, which held
+        # up every other animation for a moment each time
         self._read_backdrop()
-        self._timer.start()
         # the content fades up as the glass grows in
         self._fx = QGraphicsOpacityEffect(self.body)
         self._fx.setOpacity(0.0)

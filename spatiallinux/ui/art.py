@@ -8,7 +8,7 @@ so an idle window costs nothing.
 
 import math
 
-from PyQt6.QtCore import Qt, QRectF, QTimer
+from PyQt6.QtCore import Qt, QRectF, QTimer, QObject, QElapsedTimer
 from PyQt6.QtGui import QGuiApplication
 from PyQt6.QtGui import (
     QPainter, QColor, QPen, QPainterPath, QRadialGradient, QLinearGradient,
@@ -134,7 +134,61 @@ def _luminous_body(p: QPainter, path: QPainterPath, rect: QRectF,
     _glow_path(p, path, _accent(int(150 * strength) + 50, True), 1.3, 2)
 
 
-class FrameTimer(QTimer):
+class _Clock(QObject):
+    """One clock for every animation in the window. Separate timers ticked
+    out of step with one another, so the window was repainted several times
+    per frame at uneven moments -- the stutter. On one clock, everything
+    that moves is updated in the same moment and Qt paints it all in one
+    pass, at an even pace."""
+
+    INTERVAL_MS = 16            # ticks at display rate; scenes may skip
+
+    _instance = None
+
+    @classmethod
+    def get(cls) -> "_Clock":
+        if cls._instance is None:
+            cls._instance = _Clock()
+        return cls._instance
+
+    def __init__(self):
+        super().__init__()
+        self._timer = QTimer(self)
+        self._timer.setTimerType(Qt.TimerType.PreciseTimer)
+        self._timer.setInterval(self.INTERVAL_MS)
+        self._timer.timeout.connect(self._tick)
+        self._clock = QElapsedTimer()
+        self._clock.start()
+        self._subscribers: list = []
+
+    def now(self) -> float:
+        return self._clock.nsecsElapsed() / 1e9
+
+    def add(self, sub):
+        if sub not in self._subscribers:
+            self._subscribers.append(sub)
+        if not self._timer.isActive():
+            self._timer.start()
+
+    def remove(self, sub):
+        if sub in self._subscribers:
+            self._subscribers.remove(sub)
+        if not self._subscribers:
+            try:
+                self._timer.stop()
+            except RuntimeError:          # the app is closing
+                pass
+
+    def _tick(self):
+        now = self.now()
+        for sub in list(self._subscribers):
+            try:
+                sub._due(now)
+            except RuntimeError:          # its widget is gone
+                self.remove(sub)
+
+
+class FrameTimer(QObject):
     """Drives an animation, but only while it can be seen: its widget is
     shown and Spatial Linux is the active application. Rendering these
     scenes costs around 15% of a CPU core, and a sound app mostly sits in
@@ -142,17 +196,27 @@ class FrameTimer(QTimer):
     picks up again as soon as the window is back in front.
 
     Owners call want(True/False) for whether they have anything to animate,
-    and shown(True/False) from their show and hide events."""
+    and shown(True/False) from their show and hide events. The slot runs on
+    the shared clock at most every `interval_ms`; elapsed() gives the real
+    time since the last frame, so motion stays even when a frame is late.
+
+    (FRAME_MS values are kept as the most a scene may be redrawn: slow,
+    costly scenes still run slower.)"""
 
     def __init__(self, owner, interval_ms: int, slot):
         super().__init__(owner)
-        self.setInterval(interval_ms)
-        self.timeout.connect(slot)
+        self._interval = interval_ms / 1000.0
+        self._slot = slot
         self._wanted = False
         self._visible = False
+        self._running = False
+        self._last = 0.0
+        self._prev = 0.0
+        self._dt = 0.0
         app = QGuiApplication.instance()
         if app is not None:
             app.applicationStateChanged.connect(self._sync)
+        self.destroyed.connect(lambda *_: _Clock.get().remove(self))
 
     def want(self, on: bool):
         self._wanted = on
@@ -162,14 +226,36 @@ class FrameTimer(QTimer):
         self._visible = on
         self._sync()
 
+    def isActive(self) -> bool:
+        return self._running
+
+    def elapsed(self) -> float:
+        """Seconds since the previous frame (at most a tenth of a second,
+        so coming back to the window does not jump)."""
+        return self._dt
+
     def _sync(self, *_):
         active = (QGuiApplication.applicationState()
                   == Qt.ApplicationState.ApplicationActive)
         run = self._wanted and self._visible and active
-        if run and not self.isActive():
-            self.start()
-        elif not run and self.isActive():
-            self.stop()
+        clock = _Clock.get()
+        if run and not self._running:
+            self._running = True
+            self._prev = self._last = clock.now()
+            clock.add(self)
+        elif not run and self._running:
+            self._running = False
+            clock.remove(self)
+
+    def _due(self, now: float):
+        # a little slack, so a 33 ms scene is not pushed to every third
+        # 16 ms tick by a millisecond of jitter
+        if now - self._last < self._interval - 0.006:
+            return
+        self._last = now
+        self._dt = min(0.1, max(0.0, now - self._prev))
+        self._prev = now
+        self._slot()
 
 
 class AnimatedArt(QWidget):
@@ -198,9 +284,11 @@ class AnimatedArt(QWidget):
         self._timer.shown(False)
 
     def _tick(self):
-        step = getattr(self, "FRAME_MS", FRAME_MS) / 1000.0
+        step = self._timer.elapsed()
         self._phase = (self._phase + step / self.PERIOD_S) % 1.0
-        self._shown += (self._amount - self._shown) * 0.10
+        # eases toward the amount at the same pace whatever the frame rate
+        k = 1.0 - (0.9 ** (step * 30.0))
+        self._shown += (self._amount - self._shown) * k
         if abs(self._amount - self._shown) < 0.002:
             self._shown = self._amount
         self.update()
@@ -217,7 +305,7 @@ class SphereArt(AnimatedArt):
     then settle back."""
 
     PERIOD_S = 9.0
-    FRAME_MS = 50
+    FRAME_MS = 33
     WAVES = 3
     LABELS = [
         ("spk_front_l", 0.20, 0.13), ("spk_front_r", 0.80, 0.13),
@@ -557,7 +645,7 @@ class NightBreathArt(AnimatedArt):
     """Night Mode: someone settling -- a long exhale, shoulders letting go."""
 
     PERIOD_S = 7.5
-    FRAME_MS = 50
+    FRAME_MS = 33
     BULLET_GLYPHS = ("☾", "≋", "✿")
     BULLET_KEYS = ("night_relax", "night_soft", "night_sleep")
 
@@ -651,7 +739,7 @@ class AmbienceArt(AnimatedArt):
     """Ambience: a sound leaving the source and returning off the walls."""
 
     PERIOD_S = 4.5
-    FRAME_MS = 40
+    FRAME_MS = 33
 
     def paintEvent(self, ev):
         p = QPainter(self)

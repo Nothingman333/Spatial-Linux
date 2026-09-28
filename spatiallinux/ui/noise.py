@@ -48,11 +48,9 @@ class NoiseCard(QFrame):
 
         head = QHBoxLayout()
         head.setSpacing(8)
-        self.title = QLabel(t("sony_title"))
-        self.title.setObjectName("cardCaption")
-        head.addWidget(self.title)
+        # only the headphones' name: the three modes say what this is
         self.device = QLabel()
-        self.device.setObjectName("cardDevice")
+        self.device.setObjectName("cardCaption")
         head.addWidget(self.device, 1)
         from .headphones import Spinner
         self.spinner = Spinner()
@@ -210,7 +208,6 @@ class NoiseCard(QFrame):
         self.picked.emit(key)
 
     def retranslate(self):
-        self.title.setText(t("sony_title"))
         for key, btn in self.buttons.items():
             btn.setLabel(t(f"sony_{key}"))
         self.level_caption.setText(t("sony_level"))
@@ -229,6 +226,9 @@ class NoiseCard(QFrame):
             self._fade(False)
             return
         self.device.setText(sony.get("name") or "")
+        detail = sony.get("error")
+        self.failed_label.setToolTip(
+            t("sony_failed") + (f"\n\n({detail})" if detail else ""))
         status = sony.get("status")
         busy = status in ("reading", "applying")
         failed = status not in (None, "reading", "applying")

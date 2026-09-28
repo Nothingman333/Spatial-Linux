@@ -71,7 +71,7 @@ class BylineLink(QLabel):
     Hovering lights it fully. It runs at a low frame rate and only while
     visible, so it costs next to nothing."""
 
-    FRAME_MS = 50            # 20 fps is plenty for a slow shimmer
+    FRAME_MS = 33
     BREATH_S = 3.2           # one full brighten/dim cycle
     GLINT_EVERY_S = 4.5      # a glint crosses the text this often
     GLINT_S = 0.9            # ...and takes this long to do it
@@ -89,7 +89,7 @@ class BylineLink(QLabel):
             self.setCursor(Qt.CursorShape.PointingHandCursor)
 
     def _tick(self):
-        self._t += self.FRAME_MS / 1000.0
+        self._t += self._timer.elapsed()
         self.update()
 
     def showEvent(self, ev):
@@ -390,6 +390,7 @@ class MainWindow(QMainWindow):
         self._sony_relay.progress.connect(self._on_sony_progress)
         self._sony_busy = False
         self._sony_scanned = -1e9
+        self._sony_tries = 0
 
         # per-app volumes, in a drop-down panel
         self.mixer_btn = MixerButton()
@@ -460,6 +461,9 @@ class MainWindow(QMainWindow):
         self.out_head = self.output_chip.label
         self.output_label = self.output_chip.value
         self.output_chip.set(t("output_chip"), "", theme.TEXT_FAINT)
+        # not shown: the tabs and the power button already say it all (kept,
+        # hidden, because the output's name is still worked out into it)
+        self.output_chip.setVisible(False)
         chips.addStretch()
         vol = self.vol_glass = Glass()
         self.vol_head = QLabel(t("volume_short"))
@@ -821,7 +825,7 @@ class MainWindow(QMainWindow):
             self._sony_relay.done.emit(result)
         threading.Thread(target=run, daemon=True).start()
 
-    def _sony_refresh(self, force: bool = False):
+    def _sony_refresh(self, force: bool = False, auto: bool = False):
         """Find Sony headphones among the Bluetooth outputs and read their
         mode -- the output in use first. Done once, at start: after that the
         card shows what is known, and asks again only when told to (Try
@@ -837,6 +841,9 @@ class MainWindow(QMainWindow):
             if self._sony is None and now - self._sony_scanned < 30.0:
                 return
         self._sony_scanned = now
+        if not auto:
+            # a fresh round of retries -- one more try, when asked by hand
+            self._sony_tries = len(self.SONY_RETRIES_S) - 1 if force else 0
         if self._sony:
             self._sony = dict(self._sony, status="reading")
             self._show_sony()
@@ -856,7 +863,8 @@ class MainWindow(QMainWindow):
                 except sony.SonyError as e:
                     if str(e) == "not_sony":
                         continue
-                    return dict(dev, mode=None, status="failed")
+                    return dict(dev, mode=None, status="failed",
+                                error=e.detail, scan=True)
                 # the level and focus on voice as read, else as last set here
                 state.setdefault("level", self.settings.get("sony_level", 20))
                 state.setdefault("voice", self.settings.get("sony_voice", False))
@@ -894,8 +902,8 @@ class MainWindow(QMainWindow):
             try:
                 sony.set_mode(dev["address"], dev["mode"], dev["level"],
                               dev["voice"])
-            except sony.SonyError:
-                return dict(self._sony, status="failed")
+            except sony.SonyError as e:
+                return dict(self._sony, status="failed", error=e.detail)
             if new_mode:
                 cues.play(dev["mode"], engine_mod.RUNTIME_DIR,
                           engine_mod.host_command)
@@ -906,8 +914,26 @@ class MainWindow(QMainWindow):
         self._sony = state
         self._show_sony()
 
+    # a failed look-up is tried again on its own this many times, this far
+    # apart, before the card says so: right after login or a reconnect the
+    # headphones often turn the first connection away
+    SONY_RETRIES_S = (3.0, 8.0, 20.0)
+
     def _on_sony_result(self, result):
         self._sony_busy = False
+        if result and result.get("status") == "failed" and result.get("scan"):
+            tries = self._sony_tries
+            if tries < len(self.SONY_RETRIES_S):
+                self._sony_tries = tries + 1
+                # keep turning rather than showing a failure yet
+                self._sony = dict(result, status="reading")
+                self._show_sony()
+                QTimer.singleShot(int(self.SONY_RETRIES_S[tries] * 1000),
+                                  lambda: self._sony_refresh(force=True,
+                                                             auto=True))
+                return
+        if result and result.get("status") is None:
+            self._sony_tries = 0
         self._sony = result
         self._show_sony()
 
@@ -1306,7 +1332,9 @@ class MainWindow(QMainWindow):
 
     def _after_intro(self):
         self._intro = None
-        self._sony_refresh()
+        # the headphones are looked up a moment after the sound is set up,
+        # not in the middle of it
+        QTimer.singleShot(2500, self._sony_refresh)
         from PyQt6.QtGui import QGuiApplication
         QGuiApplication.instance().applicationStateChanged.connect(
             lambda state: state == Qt.ApplicationState.ApplicationActive
