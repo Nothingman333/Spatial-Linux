@@ -4,6 +4,8 @@
 
 # Spatial Linux — a Boom 3D alternative for Linux
 
+[![Watch the Spatial Linux 2.0 video](docs/video.jpg)](https://www.youtube.com/watch?v=deHZRHWbgqE)
+
 ![Spatial Linux, a free Boom 3D alternative for Linux: 3D surround, ambience, bass boost, night mode and equaliser](docs/screenshot.jpg)
 
 **3D sound for every app on your Linux desktop.** Looking for Boom 3D on
