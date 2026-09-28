@@ -55,22 +55,55 @@ def host_command(args: list[str]) -> list[str]:
     return HOST + list(args)
 
 
+DATA_DIR = os.path.dirname(BUNDLED_BINAURAL_IR)
+
+# The measured heads the 3D stage can use: (cue file, surround file), both
+# built by tools/build_ir.py. SADIE II subject D1 (a Neumann KU 100 dummy
+# head): Cal Armstrong, Lewis Thresh and Gavin Kearney, University of York,
+# Apache License 2.0; taken from the copy OpenAL Soft ships.
+HEADS = {
+    "kemar": ("binaural_ir.wav", "surround_ir_kemar.wav"),
+    "sadie": ("binaural_ir_sadie.wav", "surround_ir_sadie.wav"),
+}
+DEFAULT_HEAD = "kemar"
+
+
+def _data_file(name: str) -> str:
+    """A bundled file, where the host's pipewire can read it: /app is
+    invisible to it from inside the Flatpak, so there it gets a shared
+    copy."""
+    path = os.path.join(DATA_DIR, name)
+    if not IN_FLATPAK:
+        return path
+    copy = os.path.join(RUNTIME_DIR, "bundled_" + name)
+    if (not os.path.exists(copy)
+            or os.path.getsize(copy) != os.path.getsize(path)):
+        os.makedirs(RUNTIME_DIR, exist_ok=True)
+        shutil.copyfile(path, copy)
+    return copy
+
+
 def binaural_ir_path() -> str:
-    """The cue file the graph loads: the bundled one when present, else one
+    """The default head's cue file: the bundled one when present, else one
     generated on this machine (measured if it can be, analytic if not)."""
     if os.path.exists(BUNDLED_BINAURAL_IR):
-        if not IN_FLATPAK:
-            return BUNDLED_BINAURAL_IR
-        # /app is invisible to the host's pipewire; hand it a shared copy
-        copy = os.path.join(RUNTIME_DIR, "binaural_ir_bundled.wav")
-        if (not os.path.exists(copy)
-                or os.path.getsize(copy) != os.path.getsize(BUNDLED_BINAURAL_IR)):
-            os.makedirs(RUNTIME_DIR, exist_ok=True)
-            shutil.copyfile(BUNDLED_BINAURAL_IR, copy)
-        return copy
+        return _data_file(os.path.basename(BUNDLED_BINAURAL_IR))
     if not os.path.exists(BINAURAL_IR_PATH):
         generate_binaural_ir(BINAURAL_IR_PATH)
     return BINAURAL_IR_PATH
+
+
+def head_files(head: str) -> tuple[str, str]:
+    """(cue file, surround file) for a head, falling back to the default
+    head for anything missing."""
+    cue, surround = HEADS.get(head, HEADS[DEFAULT_HEAD])
+    if not os.path.exists(os.path.join(DATA_DIR, cue)):
+        cue_path = binaural_ir_path()
+    else:
+        cue_path = _data_file(cue)
+    if not os.path.exists(os.path.join(DATA_DIR, surround)):
+        surround = HEADS[DEFAULT_HEAD][1]
+    return cue_path, _data_file(surround)
 
 SINK_NAME = "spatiallinux_sink"
 SINK_DESCRIPTION = "Spatial Linux"
@@ -168,6 +201,37 @@ LIMITER_OFF = 10.0     # clamp wide enough to be a pass-through
 
 CHANNELS = ("L", "R")
 OPPOSITE = {"L": "R", "R": "L"}
+
+# The device takes 7.1, so games and films that output surround reach the
+# graph with every channel apart instead of already folded into stereo.
+# Stereo sources still arrive on FL/FR only: PipeWire's default is not to
+# spread stereo over extra channels, so for them nothing changes.
+INPUT_POSITIONS = ("FL", "FR", "FC", "LFE", "RL", "RR", "SL", "SR")
+INPUT_NODE = {"FL": "inL", "FR": "inR", "FC": "inC", "LFE": "inLFE",
+              "RL": "inRL", "RR": "inRR", "SL": "inSL", "SR": "inSR"}
+# the levels of PipeWire's own downmix to stereo, so switching between the
+# two never jumps in level
+DOWNMIX_CENTER = 0.7071
+DOWNMIX_SURROUND = 0.7071
+DOWNMIX_LFE = 0.5
+LFE_CHANNEL_CUTOFF = 120.0
+
+# A user's own HRIR file, HeSuVi layout: for each input, the channels
+# holding its response at the (left, right) ear. HeSuVi splits the centre
+# between two responses, hence its gain of 2; the LFE reuses the centre's
+# at half that, which is the usual -6 dB. From PipeWire's
+# sink-virtual-surround-7.1-hesuvi.conf.
+HESUVI_CHANNELS = {"FL": (0, 1), "FR": (8, 7), "FC": (6, 13), "LFE": (6, 13),
+                   "SL": (2, 3), "SR": (10, 9), "RL": (4, 5), "RR": (12, 11)}
+HESUVI_GAIN = {"FC": 2.0}
+CUSTOM_HRIR_PATH = os.path.join(RUNTIME_DIR, "custom_hrir.wav")
+
+# Headphone correction (an AutoEQ "ParametricEQ.txt"): this many filters,
+# each slot able to be any of these kinds.
+HP_EQ_SLOTS = 10
+HP_EQ_KINDS = {"p": "bq_peaking", "l": "bq_lowshelf", "h": "bq_highshelf"}
+AUTOEQ_KINDS = {"PK": "p", "PEQ": "p", "LS": "l", "LSC": "l", "HS": "h",
+                "HSC": "h"}
 
 
 @dataclass
@@ -292,6 +356,110 @@ def _night_makeup(amount: float) -> float:
     return NIGHT_PIVOT ** (1.0 - _night_exponent(amount))
 
 
+def _sr_gains(amount: float, custom: bool) -> dict:
+    """Gains of the sr mixers, input number -> gain.
+
+    Own 3D: 1 the front pair (direct), 2 its cues, 3 the centre, 4 the LFE
+    channel, 5-8 the surround channels; everything but the cues follows the
+    same headroom trim, so the channels stay balanced as the 3D rises.
+    Custom HRIR: 1 the plain downmix, 2 the rendered sound, crossfaded."""
+    if custom:
+        a = _clamp01(amount)
+        return {1: 1.0 - a, 2: a, 3: 0.0, 4: 0.0,
+                5: 0.0, 6: 0.0, 7: 0.0, 8: 0.0}
+    direct, cue = _surround_gains(amount)
+    return {1: direct, 2: cue, 3: DOWNMIX_CENTER * direct,
+            4: DOWNMIX_LFE * direct, 5: direct, 6: direct, 7: direct, 8: direct}
+
+
+def _ab_gains(bypass: bool) -> dict:
+    """The output mixer: processed sound, or the plain original."""
+    return {"Gain 1": 0.0 if bypass else 1.0, "Gain 2": 1.0 if bypass else 0.0}
+
+
+def _hp_eq_params(eq: dict | None) -> dict:
+    """Every control of the headphone-correction bank, for `eq` (as
+    parse_autoeq returns it) or, with None, all transparent."""
+    filters = list((eq or {}).get("filters") or [])[:HP_EQ_SLOTS]
+    pre = _db_to_lin(float((eq or {}).get("preamp", 0.0))) if eq else 1.0
+    params = {}
+    for ch in CHANNELS:
+        params[f"hpg{ch}:Mult"] = pre
+        for i in range(HP_EQ_SLOTS):
+            f = filters[i] if i < len(filters) else None
+            for kind in HP_EQ_KINDS:
+                name = f"hp{kind}{i}{ch}"
+                used = f is not None and f["kind"] == kind
+                params[f"{name}:Freq"] = f["freq"] if used else 1000.0
+                params[f"{name}:Q"] = f["q"] if used else 0.7
+                params[f"{name}:Gain"] = f["gain"] if used else 0.0
+    return params
+
+
+def parse_autoeq(text: str) -> dict:
+    """An AutoEQ ParametricEQ.txt (also what Equalizer APO reads):
+
+        Preamp: -6.4 dB
+        Filter 1: ON LSC Fc 105 Hz Gain 5.5 dB Q 0.70
+        Filter 2: ON PK Fc 2500 Hz Gain -3.1 dB Q 1.41
+
+    -> {"preamp": dB, "filters": [{kind, freq, gain, q}], "skipped": n}.
+    Peaking and shelf filters are used (all AutoEQ produces); anything
+    else is counted in "skipped". Raises ValueError if nothing usable."""
+    preamp, filters, skipped = 0.0, [], 0
+    for line in text.splitlines():
+        words = line.replace(":", " : ").split()
+        if not words:
+            continue
+        if words[0].lower() == "preamp":
+            try:
+                preamp = float(words[2])
+            except (IndexError, ValueError):
+                pass
+            continue
+        if words[0].lower() != "filter" or "ON" not in words:
+            continue
+        try:
+            kind = words[words.index("ON") + 1].upper()
+            freq = float(words[words.index("Fc") + 1])
+            gain = float(words[words.index("Gain") + 1])
+            q = float(words[words.index("Q") + 1]) if "Q" in words else 0.7
+        except (IndexError, ValueError):
+            skipped += 1
+            continue
+        if kind not in AUTOEQ_KINDS or not 10.0 <= freq <= 22000.0:
+            skipped += 1
+            continue
+        filters.append({"kind": AUTOEQ_KINDS[kind], "freq": freq,
+                        "gain": max(-24.0, min(24.0, gain)),
+                        "q": max(0.1, min(20.0, q))})
+    if not filters:
+        raise ValueError("no filters found")
+    skipped += max(0, len(filters) - HP_EQ_SLOTS)
+    return {"preamp": max(-30.0, min(10.0, preamp)),
+            "filters": filters[:HP_EQ_SLOTS], "skipped": skipped}
+
+
+def wav_channels(path: str) -> tuple[int, int]:
+    """(channels, sample rate) from a WAV file's header. Read by hand
+    because the wave module refuses the 32-bit float files HRIR sets often
+    are. Raises ValueError for anything that is not a WAV file."""
+    with open(path, "rb") as f:
+        head = f.read(12)
+        if len(head) < 12 or head[:4] != b"RIFF" or head[8:12] != b"WAVE":
+            raise ValueError("not a WAV file")
+        while True:
+            chunk = f.read(8)
+            if len(chunk) < 8:
+                raise ValueError("no format chunk")
+            size = int.from_bytes(chunk[4:8], "little")
+            if chunk[:4] == b"fmt ":
+                fmt = f.read(size)
+                return (int.from_bytes(fmt[2:4], "little"),
+                        int.from_bytes(fmt[4:8], "little"))
+            f.seek(size + (size & 1), 1)
+
+
 class SpatialEngine:
     def __init__(self):
         os.makedirs(RUNTIME_DIR, exist_ok=True)
@@ -318,7 +486,39 @@ class SpatialEngine:
         self._lock = threading.Lock()
         self._wake = threading.Event()
         self._sender: threading.Thread | None = None
+        # Set by the interface from its settings (they belong to the
+        # listener and their headphones, not to presets): which head the 3D
+        # stage uses ("kemar", "sadie" or "custom"), the headphone
+        # correction and whether it is on, and "Original" (A/B).
+        self.head = DEFAULT_HEAD
+        self.hp_eq: dict | None = None
+        self.hp_eq_on = True
+        self.bypass = False
+        # the nodes of the running graph; changes aimed at any other are
+        # dropped (the custom-HRIR graph has no cue mixers, for one)
+        self._node_names: set[str] = set()
         self._recover_from_previous_crash()
+
+    @property
+    def custom_hrir(self) -> str:
+        return CUSTOM_HRIR_PATH
+
+    def _custom_active(self) -> bool:
+        return self.head == "custom" and os.path.exists(CUSTOM_HRIR_PATH)
+
+    def reconfigure(self, state: EngineState):
+        """Rebuild the graph with the current head. The convolvers' files
+        are fixed when the graph starts, so this restarts it -- a moment of
+        silence, fine for a choice made once."""
+        if self.running:
+            self.stop()
+            # PipeWire removes the old device a moment after its process
+            # ends; starting before then would take it for another copy
+            for _ in range(30):
+                if self._find_node_id_by_name(SINK_NAME) is None:
+                    break
+                time.sleep(0.1)
+            self.start(state)
 
     # -- crash safety -----------------------------------------------------
     def _recover_from_previous_crash(self):
@@ -417,20 +617,69 @@ class SpatialEngine:
     # -- graph construction -------------------------------------------------
     def _build_graph(self, state: EngineState) -> dict:
         nodes, links = [], []
-        n = _clamp01(state.night)
         eq_gains = _night_eq(state)
         lo, hi = self._clamp_range(state)
         width = _width_from_surround(state.surround)
-        direct, cue = _surround_gains(state.surround)
         dry, wet = self._ambience_mix(state)
+        custom = self._custom_active()
 
         def link(a, b):
             links.append({"output": a, "input": b})
 
-        # ---- per-channel tone chain -------------------------------------
-        chain_out = {}
+        # ---- inputs -------------------------------------------------------
+        # One copy node per input channel: a graph input can feed only one
+        # port, and most of these feed several.
+        for pos in INPUT_POSITIONS:
+            nodes.append({"type": "builtin", "name": INPUT_NODE[pos],
+                          "label": "copy"})
+        inp = {pos: f"{INPUT_NODE[pos]}:Out" for pos in INPUT_POSITIONS}
+
+        # The plain stereo downmix a 5.1 / 7.1 source would otherwise get:
+        # what "Original" (A/B) plays, and the dry side of a custom HRIR.
+        for ch, (side, back) in (("L", ("SL", "RL")), ("R", ("SR", "RR"))):
+            nodes.append({"type": "builtin", "name": f"dm{ch}", "label": "mixer",
+                          "control": {"Gain 1": 1.0, "Gain 2": DOWNMIX_CENTER,
+                                      "Gain 3": DOWNMIX_LFE,
+                                      "Gain 4": DOWNMIX_SURROUND,
+                                      "Gain 5": DOWNMIX_SURROUND}})
+            link(inp["FL" if ch == "L" else "FR"], f"dm{ch}:In 1")
+            link(inp["FC"], f"dm{ch}:In 2")
+            link(inp["LFE"], f"dm{ch}:In 3")
+            link(inp[side], f"dm{ch}:In 4")
+            link(inp[back], f"dm{ch}:In 5")
+
+        if custom:
+            self._build_custom_hrir(nodes, link, inp)
+        else:
+            self._build_3d(nodes, link, inp, state, width)
+
+        sr = _sr_gains(state.surround, custom)
         for ch in CHANNELS:
-            seq = []
+            nodes.append({"type": "builtin", "name": f"sr{ch}", "label": "mixer",
+                          "control": {f"Gain {i}": sr[i] for i in range(1, 9)}})
+        if custom:
+            for ch in CHANNELS:
+                link(f"dm{ch}:Out", f"sr{ch}:In 1")
+                link(f"hv{ch}:Out", f"sr{ch}:In 2")
+        else:
+            for ch, near, far in (("L", ("SL", "RL"), ("SR", "RR")),
+                                  ("R", ("SR", "RR"), ("SL", "RL"))):
+                link(f"w{ch}:Out", f"sr{ch}:In 1")
+                link(f"cue{ch}:Out", f"sr{ch}:In 2")
+                link(inp["FC"], f"sr{ch}:In 3")
+                link("lfelp:Out", f"sr{ch}:In 4")
+                link(f"s{near[0]}{ch}:Out", f"sr{ch}:In 5")
+                link(f"s{far[0]}{ch}:Out", f"sr{ch}:In 6")
+                link(f"s{near[1]}{ch}:Out", f"sr{ch}:In 7")
+                link(f"s{far[1]}{ch}:Out", f"sr{ch}:In 8")
+
+        # ---- tone chain ---------------------------------------------------
+        # After the 3D stage rather than before it: every stage here is
+        # linear and the same on both channels, so for stereo the result is
+        # identical, and this way the surround channels of a 5.1 / 7.1
+        # source get the equaliser, bass and pre-amp too.
+        for ch in CHANNELS:
+            seq = [f"sr{ch}"]
             nodes.append({"type": "builtin", "name": f"pre{ch}", "label": "linear",
                           "control": {"Mult": _db_to_lin(state.preamp), "Add": 0.0}})
             seq.append(f"pre{ch}")
@@ -455,96 +704,14 @@ class SpatialEngine:
                                       "Gain": state.fidelity * FIDELITY_LO_RATIO}})
             seq.append(f"fidlo{ch}")
 
+            # LFE trim, belonging to the 3D mode
+            nodes.append({"type": "builtin", "name": f"lfe{ch}", "label": "bq_lowshelf",
+                          "control": {"Freq": SURROUND_LFE_FREQ, "Q": 0.7,
+                                      "Gain": state.lfe}})
+            seq.append(f"lfe{ch}")
+
             for a, b in zip(seq, seq[1:]):
                 link(f"{a}:Out", f"{b}:In")
-            chain_out[ch] = f"{seq[-1]}:Out"
-
-        # ---- 3D Surround, stage 1: bass-preserving mid/side width --------
-        # Only the *added* width is filtered, never the original side signal:
-        #
-        #   side_out = side + highpass(side * (width - 1))
-        #
-        # At width 1 the added term is exactly zero, so the stage is
-        # bit-transparent; above it, the extra width is high-passed and the
-        # bass stays where it was. Splitting the side signal instead and
-        # scaling the upper half does not work -- no split is sharp enough,
-        # and at the widths this mode now reaches the leftover low end came
-        # through hard enough to hollow out the bass.
-        nodes += [
-            {"type": "builtin", "name": "mid", "label": "mixer",
-             "control": {"Gain 1": 0.5, "Gain 2": 0.5}},
-            {"type": "builtin", "name": "invR", "label": "invert"},
-            {"type": "builtin", "name": "side", "label": "mixer",
-             "control": {"Gain 1": 0.5, "Gain 2": 0.5}},
-            {"type": "builtin", "name": "wid", "label": "linear",
-             "control": {"Mult": width - 1.0, "Add": 0.0}},
-            {"type": "builtin", "name": "sdhp", "label": "bq_highpass",
-             "control": {"Freq": SURROUND_BASS_SPLIT, "Q": 0.707, "Gain": 0.0}},
-            {"type": "builtin", "name": "sdm", "label": "mixer",
-             "control": {"Gain 1": 1.0, "Gain 2": 1.0}},
-            {"type": "builtin", "name": "invS", "label": "invert"},
-            {"type": "builtin", "name": "wL", "label": "mixer",
-             "control": {"Gain 1": 1.0, "Gain 2": 1.0}},
-            {"type": "builtin", "name": "wR", "label": "mixer",
-             "control": {"Gain 1": 1.0, "Gain 2": 1.0}},
-        ]
-        link(chain_out["L"], "mid:In 1")
-        link(chain_out["R"], "mid:In 2")
-        link(chain_out["L"], "side:In 1")
-        link(chain_out["R"], "invR:In")
-        link("invR:Out", "side:In 2")
-        link("side:Out", "wid:In")          # the added width only
-        link("wid:Out", "sdhp:In")
-        link("side:Out", "sdm:In 1")        # the original side, untouched
-        link("sdhp:Out", "sdm:In 2")
-        link("sdm:Out", "invS:In")
-        link("mid:Out", "wL:In 1")
-        link("sdm:Out", "wL:In 2")
-        link("mid:Out", "wR:In 1")
-        link("invS:Out", "wR:In 2")
-
-        # ---- 3D Surround, stage 2: binaural head model -------------------
-        # Six convolutions (layout in ir.generate_binaural_ir): each input
-        # across the head to the far ear, plus the rear speakers and room
-        # kept separate so the Reverb slider can scale them on their own.
-        for name, source, channel in (("fLR", "L", 0), ("fRL", "R", 1),
-                                      ("rLR", "L", 2), ("rLL", "L", 3),
-                                      ("rRL", "R", 4), ("rRR", "R", 5)):
-            nodes.append({
-                "type": "builtin", "name": name, "label": "convolver",
-                "config": {"filename": binaural_ir_path(), "channel": channel,
-                           "gain": 1.0},
-            })
-            link(f"w{source}:Out", f"{name}:In")
-
-        # sum the cues arriving at each ear, then add them to the dry signal
-        room = _clamp01(state.room)
-        for ear, own, other, front in (("L", "rLL", "rRL", "fRL"),
-                                       ("R", "rRR", "rLR", "fLR")):
-            nodes.append({"type": "builtin", "name": f"cue{ear}",
-                          "label": "mixer",
-                          "control": {"Gain 1": room, "Gain 2": room,
-                                      "Gain 3": 1.0}})
-            link(f"{own}:Out", f"cue{ear}:In 1")     # rear + room, own side
-            link(f"{other}:Out", f"cue{ear}:In 2")   # rear, other side
-            link(f"{front}:Out", f"cue{ear}:In 3")   # across the head
-
-        for ch in CHANNELS:
-            nodes.append({
-                "type": "builtin", "name": f"sr{ch}", "label": "mixer",
-                "control": {"Gain 1": direct, "Gain 2": cue},
-            })
-            link(f"w{ch}:Out", f"sr{ch}:In 1")
-            link(f"cue{ch}:Out", f"sr{ch}:In 2")
-
-        # LFE trim, belonging to the 3D mode
-        for ch in CHANNELS:
-            nodes.append({
-                "type": "builtin", "name": f"lfe{ch}", "label": "bq_lowshelf",
-                "control": {"Freq": SURROUND_LFE_FREQ, "Q": 0.7,
-                            "Gain": state.lfe},
-            })
-            link(f"sr{ch}:Out", f"lfe{ch}:In")
 
         # ---- ambience (convolution reverb, wet/dry via mixer gains) ------
         for idx, ch in enumerate(CHANNELS):
@@ -603,16 +770,154 @@ class SpatialEngine:
                                       "Add": 0.0}})
             link(f"nml{ch}:Out", f"ngc{ch}:In")
 
+            # headphone correction, then the ceiling, then A/B
+            src = self._build_headphone_eq(nodes, link, ch, f"ngc{ch}:Out")
             nodes.append({"type": "builtin", "name": f"lim{ch}", "label": "clamp",
                           "control": {"Min": lo, "Max": hi}})
-            link(f"ngc{ch}:Out", f"lim{ch}:In")
+            link(src, f"lim{ch}:In")
+            nodes.append({"type": "builtin", "name": f"out{ch}", "label": "mixer",
+                          "control": _ab_gains(self.bypass)})
+            link(f"lim{ch}:Out", f"out{ch}:In 1")
+            link(f"dm{ch}:Out", f"out{ch}:In 2")
 
         return {
             "nodes": nodes,
             "links": links,
-            "inputs": [f"pre{ch}:In" for ch in CHANNELS],
-            "outputs": [f"lim{ch}:Out" for ch in CHANNELS],
+            "inputs": [f"{INPUT_NODE[pos]}:In" for pos in INPUT_POSITIONS],
+            "outputs": [f"out{ch}:Out" for ch in CHANNELS],
         }
+
+    def _build_3d(self, nodes, link, inp, state: EngineState, width: float):
+        """Spatial Linux's own 3D stage for the front pair, and the
+        measured head placing a 5.1 / 7.1 source's other channels."""
+        cue_file, surround_file = head_files(self.head)
+        # ---- 3D Surround, stage 1: bass-preserving mid/side width --------
+        # Only the *added* width is filtered, never the original side signal:
+        #
+        #   side_out = side + highpass(side * (width - 1))
+        #
+        # At width 1 the added term is exactly zero, so the stage is
+        # bit-transparent; above it, the extra width is high-passed and the
+        # bass stays where it was. Splitting the side signal instead and
+        # scaling the upper half does not work -- no split is sharp enough,
+        # and at the widths this mode now reaches the leftover low end came
+        # through hard enough to hollow out the bass.
+        nodes += [
+            {"type": "builtin", "name": "mid", "label": "mixer",
+             "control": {"Gain 1": 0.5, "Gain 2": 0.5}},
+            {"type": "builtin", "name": "invR", "label": "invert"},
+            {"type": "builtin", "name": "side", "label": "mixer",
+             "control": {"Gain 1": 0.5, "Gain 2": 0.5}},
+            {"type": "builtin", "name": "wid", "label": "linear",
+             "control": {"Mult": width - 1.0, "Add": 0.0}},
+            {"type": "builtin", "name": "sdhp", "label": "bq_highpass",
+             "control": {"Freq": SURROUND_BASS_SPLIT, "Q": 0.707, "Gain": 0.0}},
+            {"type": "builtin", "name": "sdm", "label": "mixer",
+             "control": {"Gain 1": 1.0, "Gain 2": 1.0}},
+            {"type": "builtin", "name": "invS", "label": "invert"},
+            {"type": "builtin", "name": "wL", "label": "mixer",
+             "control": {"Gain 1": 1.0, "Gain 2": 1.0}},
+            {"type": "builtin", "name": "wR", "label": "mixer",
+             "control": {"Gain 1": 1.0, "Gain 2": 1.0}},
+        ]
+        link(inp["FL"], "mid:In 1")
+        link(inp["FR"], "mid:In 2")
+        link(inp["FL"], "side:In 1")
+        link(inp["FR"], "invR:In")
+        link("invR:Out", "side:In 2")
+        link("side:Out", "wid:In")          # the added width only
+        link("wid:Out", "sdhp:In")
+        link("side:Out", "sdm:In 1")        # the original side, untouched
+        link("sdhp:Out", "sdm:In 2")
+        link("sdm:Out", "invS:In")
+        link("mid:Out", "wL:In 1")
+        link("sdm:Out", "wL:In 2")
+        link("mid:Out", "wR:In 1")
+        link("invS:Out", "wR:In 2")
+
+        # ---- 3D Surround, stage 2: binaural head model -------------------
+        # Six convolutions (layout in ir.generate_binaural_ir): each input
+        # across the head to the far ear, plus the rear speakers and room
+        # kept separate so the Reverb slider can scale them on their own.
+        for name, source, channel in (("fLR", "L", 0), ("fRL", "R", 1),
+                                      ("rLR", "L", 2), ("rLL", "L", 3),
+                                      ("rRL", "R", 4), ("rRR", "R", 5)):
+            nodes.append({
+                "type": "builtin", "name": name, "label": "convolver",
+                "config": {"filename": cue_file, "channel": channel,
+                           "gain": 1.0},
+            })
+            link(f"w{source}:Out", f"{name}:In")
+
+        # sum the cues arriving at each ear, then add them to the dry signal
+        room = _clamp01(state.room)
+        for ear, own, other, front in (("L", "rLL", "rRL", "fRL"),
+                                       ("R", "rRR", "rLR", "fLR")):
+            nodes.append({"type": "builtin", "name": f"cue{ear}",
+                          "label": "mixer",
+                          "control": {"Gain 1": room, "Gain 2": room,
+                                      "Gain 3": 1.0}})
+            link(f"{own}:Out", f"cue{ear}:In 1")     # rear + room, own side
+            link(f"{other}:Out", f"cue{ear}:In 2")   # rear, other side
+            link(f"{front}:Out", f"cue{ear}:In 3")   # across the head
+
+        # ---- discrete surround channels ----------------------------------
+        # A 5.1 / 7.1 source's own surround channels, each heard from where
+        # its speaker would be (see ir.generate_surround_ir). Stereo sources
+        # leave these channels silent, so for them nothing here changes the
+        # sound. The centre joins both ears dry, like the front pair; the
+        # LFE channel is kept to its band and added to both.
+        for src, near_ear, far_ear, near_ch in (("SL", "L", "R", 0),
+                                                 ("SR", "R", "L", 0),
+                                                 ("RL", "L", "R", 2),
+                                                 ("RR", "R", "L", 2)):
+            for ear, channel in ((near_ear, near_ch), (far_ear, near_ch + 1)):
+                nodes.append({"type": "builtin", "name": f"s{src}{ear}",
+                              "label": "convolver",
+                              "config": {"filename": surround_file,
+                                         "channel": channel, "gain": 1.0}})
+                link(inp[src], f"s{src}{ear}:In")
+        nodes.append({"type": "builtin", "name": "lfelp", "label": "bq_lowpass",
+                      "control": {"Freq": LFE_CHANNEL_CUTOFF, "Q": 0.707,
+                                  "Gain": 0.0}})
+        link(inp["LFE"], "lfelp:In")
+
+    def _build_custom_hrir(self, nodes, link, inp):
+        """Every channel through the user's own 14-channel HRIR file, laid
+        out the HeSuVi way -- the same mapping as PipeWire's own
+        sink-virtual-surround-7.1-hesuvi.conf example."""
+        path = self.custom_hrir
+        for ch in CHANNELS:
+            nodes.append({"type": "builtin", "name": f"hv{ch}", "label": "mixer"})
+        for i, pos in enumerate(INPUT_POSITIONS):
+            for ear, channel in zip(CHANNELS, HESUVI_CHANNELS[pos]):
+                name = f"h{pos}{ear}"
+                nodes.append({"type": "builtin", "name": name, "label": "convolver",
+                              "config": {"filename": path, "channel": channel,
+                                         "gain": HESUVI_GAIN.get(pos, 1.0)}})
+                link(inp[pos], f"{name}:In")
+                link(f"{name}:Out", f"hv{ear}:In {i + 1}")
+
+    def _build_headphone_eq(self, nodes, link, ch, src) -> str:
+        """HP_EQ_SLOTS filters of the headphone correction. Each slot is a
+        peaking, a low-shelf and a high-shelf filter in a row, of which the
+        loaded file's filter uses one and the other two sit at 0 dB -- where
+        a biquad is exactly transparent -- so any file can be loaded, and
+        switched on and off, while playing, without rebuilding the graph."""
+        params = _hp_eq_params(self.hp_eq if self.hp_eq_on else None)
+        nodes.append({"type": "builtin", "name": f"hpg{ch}", "label": "linear",
+                      "control": {"Mult": params[f"hpg{ch}:Mult"], "Add": 0.0}})
+        link(src, f"hpg{ch}:In")
+        prev = f"hpg{ch}"
+        for i in range(HP_EQ_SLOTS):
+            for kind, label in HP_EQ_KINDS.items():
+                name = f"hp{kind}{i}{ch}"
+                nodes.append({"type": "builtin", "name": name, "label": label,
+                              "control": {k: params[f"{name}:{k}"]
+                                          for k in ("Freq", "Q", "Gain")}})
+                link(f"{prev}:Out", f"{name}:In")
+                prev = name
+        return f"{prev}:Out"
 
     @staticmethod
     def _clamp_range(state: EngineState) -> tuple[float, float]:
@@ -629,16 +934,18 @@ class SpatialEngine:
         return (1.0 - 0.5 * a, a * 0.15)
 
     def _build_conf(self, state: EngineState) -> str:
+        graph = self._build_graph(state)
+        self._node_names = {n["name"] for n in graph["nodes"]}
         args = {
             "node.description": SINK_DESCRIPTION,
             "media.name": SINK_DESCRIPTION,
-            "filter.graph": self._build_graph(state),
+            "filter.graph": graph,
             "capture.props": {
                 "node.name": SINK_NAME,
                 "node.description": SINK_DESCRIPTION,
                 "media.class": "Audio/Sink",
-                "audio.channels": 2,
-                "audio.position": ["FL", "FR"],
+                "audio.channels": len(INPUT_POSITIONS),
+                "audio.position": list(INPUT_POSITIONS),
             },
             "playback.props": {
                 "node.name": f"{SINK_NAME}.playback",
@@ -777,6 +1084,9 @@ context.modules = [
     def _set_props(self, params: dict):
         if self.sink_id is None:
             return
+        if self._node_names:
+            params = {k: v for k, v in params.items()
+                      if k.split(":", 1)[0] in self._node_names}
         with self._lock:
             self._pending.update(params)
         if self.defer is not None:
@@ -859,10 +1169,21 @@ context.modules = [
     def set_surround(self, amount: float, state: EngineState | None = None):
         if state is not None:
             state.surround = amount
-        direct, cue = _surround_gains(amount)
+        sr = _sr_gains(amount, self._custom_active())
         self._set_props({"wid:Mult": _width_from_surround(amount) - 1.0} |
-                        {f"sr{ch}:Gain 1": direct for ch in CHANNELS} |
-                        {f"sr{ch}:Gain 2": cue for ch in CHANNELS})
+                        {f"sr{ch}:Gain {i}": g
+                         for ch in CHANNELS for i, g in sr.items()})
+
+    def set_bypass(self, bypass: bool):
+        """"Original": the plain source, without any processing (A/B)."""
+        self.bypass = bypass
+        self._set_props({f"out{ch}:{k}": v for ch in CHANNELS
+                         for k, v in _ab_gains(bypass).items()})
+
+    def set_hp_eq(self, eq: dict | None, on: bool):
+        """Load, clear or switch the headphone correction, live."""
+        self.hp_eq, self.hp_eq_on = eq, on
+        self._set_props(_hp_eq_params(eq if on else None))
 
     def set_treble(self, gain_db: float, state: EngineState | None = None):
         gain_db = max(-TREBLE_RANGE_DB, min(TREBLE_RANGE_DB, gain_db))
@@ -921,7 +1242,7 @@ context.modules = [
         n = _clamp01(state.night)
         dry, wet = self._ambience_mix(state)
         lo, hi = self._clamp_range(state)
-        direct, cue = _surround_gains(state.surround)
+        sr = _sr_gains(state.surround, self._custom_active())
 
         params: dict = {"wid:Mult": _width_from_surround(state.surround) - 1.0}
         for ch in CHANNELS:
@@ -933,8 +1254,8 @@ context.modules = [
             params[f"fidlo{ch}:Gain"] = state.fidelity * FIDELITY_LO_RATIO
             params[f"nsc{ch}:Mult"] = _night_exponent(n) - 1.0
             params[f"ngc{ch}:Mult"] = _night_makeup(n)
-            params[f"sr{ch}:Gain 1"] = direct
-            params[f"sr{ch}:Gain 2"] = cue
+            for i, g in sr.items():
+                params[f"sr{ch}:Gain {i}"] = g
             params[f"lfe{ch}:Gain"] = state.lfe
             params[f"tre{ch}:Gain"] = state.treble
             params[f"cue{ch}:Gain 1"] = _clamp01(state.room)

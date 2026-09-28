@@ -31,9 +31,20 @@ what kind of app this is.</sub>
 
 ## Features
 
+> [!NOTE]
+> **Spatial Linux 2.0 is in beta.** Real 5.1 / 7.1 surround, a second 3D
+> head, your own HRIR file, headphone correction and an A/B button are in
+> the [pre-release](https://github.com/Nothingman333/Spatial-Linux/releases).
+> The stable version stays available as **Latest** on the same page.
+
 | | What it does |
 |---|---|
 | **3D Surround** | Moves the sound out of your headphones and into the room: virtual front and rear speakers rendered with a head model measured on a real head (MIT KEMAR). Sliders for intensity, **Subwoofer**, **Reverb** (how much room and rear speakers), **Treble** and **Clarity**; Subwoofer, Reverb and Clarity can each be switched off. |
+| **5.1 / 7.1 surround** *(2.0 beta)* | Games and films that play surround are heard from all around you: centre, sides and back each from their own place, instead of being folded into stereo first. Stereo sounds exactly as before. |
+| **3D head** *(2.0 beta)* | Pick whose ears the 3D sound is measured with: the MIT KEMAR head or a Neumann KU 100 (SADIE II). Heads differ like ears do; choose the one that puts the sound most clearly in front of you. |
+| **Your own HRIR** *(2.0 beta)* | Load a 14-channel HRIR file in the HeSuVi layout and every channel runs through it. |
+| **Headphone correction** *(2.0 beta)* | Load the AutoEQ `ParametricEQ.txt` for your headphone model (from [autoeq.app](https://autoeq.app)) to even out its own sound. On / Off at any time. |
+| **A/B** *(2.0 beta)* | Hold the A/B button to hear the original sound, without Spatial Linux, and let go to hear the difference. |
 | **Ambience** | Convolution reverb that builds a room around the music, with its own **Treble** control. |
 | **Fidelity** | Lifts the deepest lows and the finest highs, the ranges the ear hears least. |
 | **Bass Boost** | A clean low shelf below 110 Hz. |
@@ -183,7 +194,10 @@ starts Spatial Linux in the container.
    with **Save**.
 4. Use the **mixer button** (three faders, top right) to set each app's own
    volume or mute it.
-5. **Defaults** returns everything to the factory settings.
+5. *(2.0 beta)* Open the **headphones button** to pick the 3D head, load
+   your own HRIR file or your headphones' correction, and **hold A/B** to
+   compare with the original.
+6. **Defaults** returns everything to the factory settings.
 
 ## How it works
 
@@ -221,3 +235,10 @@ measurements by **Bill Gardner and Keith Martin**, MIT Media Lab, 1994
 provided free of restrictions on use, provided the authors are credited.
 The file built from it, `spatiallinux/data/binaural_ir.wav`, is made with
 [`tools/build_ir.py`](tools/build_ir.py).
+
+The **KU 100** head (2.0 beta) is built from the **SADIE II** database,
+subject D1, by **Cal Armstrong, Lewis Thresh and Gavin Kearney**, The Audio
+Lab, University of York ([source](https://www.york.ac.uk/sadie-project/database.html)),
+under the Apache License 2.0 (see
+[`spatiallinux/data/LICENSE-SADIE-II.txt`](spatiallinux/data/LICENSE-SADIE-II.txt)),
+taken from the copy [OpenAL Soft](https://github.com/kcat/openal-soft) ships.

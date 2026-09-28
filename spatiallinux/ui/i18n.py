@@ -181,6 +181,65 @@ _STRINGS = {
                         "PipeWire aracı pw-dump bulunamadı, uygulama listesi "
                         "okunamıyor."),
     "mute":            ("Mute / unmute", "Sessize al / aç"),
+    "hp_tip":          ("Headphones & 3D head", "Kulaklık ve 3D kafa"),
+    "hp_title":        ("HEADPHONES", "KULAKLIK"),
+    "hp_head":         ("3D HEAD", "3D KAFA"),
+    "hp_head_hint":    ("Whose ears the 3D sound is measured with. Heads "
+                        "differ, like ears do: pick the one where sound is "
+                        "most clearly in front of you and outside your head.",
+                        "3D sesin hangi kulaklarla ölçüldüğü. Kafalar da "
+                        "kulaklar gibi farklıdır: sesin en net önünde ve "
+                        "kafanın dışında duyulduğunu seç."),
+    "head_kemar":      ("KEMAR", "KEMAR"),
+    "head_kemar_tip":  ("MIT KEMAR dummy head (the original sound)",
+                        "MIT KEMAR yapay kafa (orijinal ses)"),
+    "head_sadie":      ("KU 100", "KU 100"),
+    "head_sadie_tip":  ("Neumann KU 100 dummy head, SADIE II (University of "
+                        "York)",
+                        "Neumann KU 100 yapay kafa, SADIE II (York "
+                        "Üniversitesi)"),
+    "head_custom":     ("Own file", "Kendi dosyan"),
+    "head_custom_tip": ("Your own 14-channel HRIR file in the HeSuVi layout; "
+                        "every channel goes through it",
+                        "HeSuVi düzeninde kendi 14 kanallı HRIR dosyan; tüm "
+                        "kanallar ondan geçer"),
+    "hp_choose_hrir":  ("Choose HRIR file…", "HRIR dosyası seç…"),
+    "hp_no_hrir":      ("No file chosen", "Dosya seçilmedi"),
+    "hp_eq":           ("HEADPHONE CORRECTION", "KULAKLIK DÜZELTME"),
+    "hp_eq_hint":      ("Evens out your headphones' own sound. Download the "
+                        "ParametricEQ.txt for your model from autoeq.app "
+                        "and load it here.",
+                        "Kulaklığının kendi rengini düzeltir. Modelinin "
+                        "ParametricEQ.txt dosyasını autoeq.app'ten indirip "
+                        "buradan yükle."),
+    "hp_load_eq":      ("Load file…", "Dosya yükle…"),
+    "hp_remove_eq":    ("Remove", "Kaldır"),
+    "hp_no_eq":        ("None loaded", "Yüklenmedi"),
+    "hp_surround":     ("Games and films that play 5.1 or 7.1 are heard "
+                        "from all around you: every channel from its own "
+                        "place. Stereo is not changed.",
+                        "5.1 ya da 7.1 çalan oyun ve filmler çevrenden "
+                        "duyulur: her kanal kendi yerinden. Stereo "
+                        "değişmez."),
+    "ab_tip":          ("Hold to hear the original sound, without Spatial "
+                        "Linux", "Basılı tut: orijinal sesi, Spatial Linux "
+                        "olmadan dinle"),
+    "hrir_bad":        ("This is not a 14-channel HRIR file in the HeSuVi "
+                        "layout. It has {n} channels.",
+                        "Bu, HeSuVi düzeninde 14 kanallı bir HRIR dosyası "
+                        "değil. {n} kanalı var."),
+    "hrir_unreadable": ("This file could not be read as a WAV file.",
+                        "Bu dosya WAV dosyası olarak okunamadı."),
+    "autoeq_bad":      ("No filters were found in this file. Choose the "
+                        "ParametricEQ.txt from autoeq.app.",
+                        "Bu dosyada filtre bulunamadı. autoeq.app'teki "
+                        "ParametricEQ.txt dosyasını seç."),
+    "autoeq_skipped":  ("{n} filter(s) of this file could not be used and "
+                        "were left out.",
+                        "Bu dosyadaki {n} filtre kullanılamadı ve dışarıda "
+                        "bırakıldı."),
+    "reconfigure_failed": ("Could not switch the 3D head:",
+                           "3D kafa değiştirilemedi:"),
     "info_tip":        ("How to use", "Nasıl kullanılır"),
     "intro_ready_t":   ("You're ready", "Hazırsın"),
     "intro_ready":     ("Press the power button to switch it on. One mode "

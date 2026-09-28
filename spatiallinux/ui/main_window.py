@@ -1,12 +1,13 @@
 import json
 import math
 import os
+import shutil
 from dataclasses import asdict
 
 from PyQt6.QtCore import Qt, QTimer, QVariantAnimation, QEasingCurve
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
-    QSlider, QPushButton, QComboBox, QInputDialog, QMessageBox,
+    QSlider, QPushButton, QComboBox, QInputDialog, QMessageBox, QFileDialog,
 )
 
 from .. import presets, __version__
@@ -27,6 +28,7 @@ from .panels import SurroundPanel, SliderPanel
 from .art import BassHeadArt, LipsArt, NightBreathArt, AmbienceArt, FrameTimer
 from .intro import IntroOverlay
 from .mixer import MixerButton, MixerPanel
+from .headphones import HeadphonesButton, HeadphonesPanel, ABButton
 
 
 LOGO_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)),
@@ -327,6 +329,7 @@ class MainWindow(QMainWindow):
         self._flush_timer.timeout.connect(self.engine.flush)
         self.engine.defer = self._schedule_flush
         self.settings = presets.load_settings()
+        self._apply_listener_settings()
         session = presets.load_session()
         if session is not None and session.language:
             i18n.set_language(session.language)
@@ -398,7 +401,7 @@ class MainWindow(QMainWindow):
         header = Panel()
         lay = QHBoxLayout(header)
         lay.setContentsMargins(20, 12, 20, 12)
-        lay.setSpacing(14)
+        lay.setSpacing(10)
 
         title_box = QVBoxLayout()
         title_box.setSpacing(0)
@@ -449,6 +452,13 @@ class MainWindow(QMainWindow):
         self.power_btn.clicked.connect(self._on_power_toggled)
         lay.addWidget(self.power_btn)
 
+        # held: the original sound, to compare
+        self.ab_btn = ABButton()
+        self.ab_btn.setToolTip(t("ab_tip"))
+        self.ab_btn.pressed.connect(lambda: self._set_bypass(True))
+        self.ab_btn.released.connect(lambda: self._set_bypass(False))
+        lay.addWidget(self.ab_btn, 0, Qt.AlignmentFlag.AlignVCenter)
+
         vol_box = QVBoxLayout()
         vol_box.setSpacing(2)
         vol_head = self.vol_head = QLabel(t("volume"))
@@ -459,7 +469,7 @@ class MainWindow(QMainWindow):
         self.volume_slider = QSlider(Qt.Orientation.Horizontal)
         self.volume_slider.setRange(0, 100)
         self.volume_slider.setValue(100)
-        self.volume_slider.setFixedWidth(120)
+        self.volume_slider.setFixedWidth(104)
         self.volume_slider.valueChanged.connect(self._on_volume_changed)
         vol_row.addWidget(self.volume_slider)
         self.volume_label = QLabel("100")
@@ -479,7 +489,7 @@ class MainWindow(QMainWindow):
         self.preamp_slider = QSlider(Qt.Orientation.Horizontal)
         self.preamp_slider.setRange(-12, 12)
         self.preamp_slider.setValue(0)
-        self.preamp_slider.setFixedWidth(100)
+        self.preamp_slider.setFixedWidth(88)
         self.preamp_slider.valueChanged.connect(self._on_preamp_changed)
         pre_row.addWidget(self.preamp_slider)
         self.preamp_label = QLabel("0 dB")
@@ -501,6 +511,13 @@ class MainWindow(QMainWindow):
         out_box.addWidget(out_head)
         out_box.addWidget(self.output_label, alignment=Qt.AlignmentFlag.AlignRight)
         lay.addLayout(out_box)
+
+        # 3D head and headphone correction, in a drop-down panel
+        self.hp_btn = HeadphonesButton()
+        self.hp_btn.setToolTip(t("hp_tip"))
+        self.hp_btn.clicked.connect(self._open_headphones)
+        lay.addWidget(self.hp_btn, 0, Qt.AlignmentFlag.AlignVCenter)
+        self._hp_panel = None
 
         # per-app volumes, in a drop-down panel
         self.mixer_btn = MixerButton()
@@ -744,6 +761,8 @@ class MainWindow(QMainWindow):
         self.lang_btn.setToolTip(t("language_tip"))
         self.info_btn.setToolTip(t("info_tip"))
         self.mixer_btn.setToolTip(t("mixer_tip"))
+        self.hp_btn.setToolTip(t("hp_tip"))
+        self.ab_btn.setToolTip(t("ab_tip"))
         self.mode_note.setText(t("one_mode_note"))
         self.eq_head.setText(t("equaliser"))
         self.eq_hint.setText(t("eq_hint"))
@@ -780,6 +799,118 @@ class MainWindow(QMainWindow):
             self._mixer.deleteLater()
         self._mixer = MixerPanel(self.engine, self)
         self._mixer.open_below(self.mixer_btn)
+
+    # -- headphones: 3D head, own HRIR, correction, A/B -------------------------
+    def _apply_listener_settings(self):
+        head = self.settings.get("head")
+        if head not in engine_mod.HEADS and head != "custom":
+            head = engine_mod.DEFAULT_HEAD
+        if head == "custom" and not os.path.exists(engine_mod.CUSTOM_HRIR_PATH):
+            head = engine_mod.DEFAULT_HEAD
+        self.engine.head = head
+        eq = self.settings.get("hp_eq")
+        self.engine.hp_eq = eq if isinstance(eq, dict) and eq.get("filters") else None
+        self.engine.hp_eq_on = bool(self.settings.get("hp_eq_on", True))
+
+    def _open_headphones(self):
+        # rebuilt each time, so it shows the current state and language
+        if self._hp_panel is not None:
+            self._hp_panel.deleteLater()
+        eq = self.engine.hp_eq
+        panel = self._hp_panel = HeadphonesPanel(
+            self.engine.head, self.settings.get("custom_hrir_name"),
+            eq.get("name") if eq else None, self.engine.hp_eq_on, self)
+        panel.headPicked.connect(self._on_head_picked)
+        panel.chooseHrir.connect(self._choose_hrir)
+        panel.loadEq.connect(self._load_hp_eq)
+        panel.eqToggled.connect(self._on_hp_eq_toggled)
+        panel.eqRemoved.connect(self._remove_hp_eq)
+        panel.open_below(self.hp_btn)
+
+    def _on_head_picked(self, head: str):
+        if head == self.engine.head:
+            return
+        self.engine.head = head
+        self.settings["head"] = head
+        self._reconfigure()
+
+    def _reconfigure(self):
+        """Restart a running engine so a new head takes effect."""
+        if not self.engine.running:
+            return
+        try:
+            self.engine.reconfigure(self.state)
+        except Exception as e:
+            self.power_btn.setChecked(False)
+            self.status_label.setText(t("status_off"))
+            QMessageBox.critical(self, "Spatial Linux",
+                                 f"{t('reconfigure_failed')}\n{e}")
+            return
+        self.engine.set_volume(self.volume_slider.value())
+        self.engine.flush()
+        self._refresh_output_label()
+
+    def _choose_hrir(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, t("hp_choose_hrir"), os.path.expanduser("~"),
+            "WAV (*.wav *.WAV)")
+        if not path:
+            return
+        try:
+            channels, _rate = engine_mod.wav_channels(path)
+        except (OSError, ValueError):
+            QMessageBox.warning(self, "Spatial Linux", t("hrir_unreadable"))
+            return
+        if channels != 14:
+            QMessageBox.warning(self, "Spatial Linux",
+                                t("hrir_bad").format(n=channels))
+            return
+        # a copy of our own: the original may move, and inside the Flatpak
+        # the host's PipeWire can only read the shared data folder
+        os.makedirs(os.path.dirname(engine_mod.CUSTOM_HRIR_PATH), exist_ok=True)
+        shutil.copyfile(path, engine_mod.CUSTOM_HRIR_PATH)
+        self.settings["custom_hrir_name"] = os.path.basename(path)
+        # a new file needs the graph rebuilt even if "custom" was on already
+        self.engine.head = "custom"
+        self.settings["head"] = "custom"
+        self._reconfigure()
+
+    def _load_hp_eq(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, t("hp_load_eq"), os.path.expanduser("~"),
+            "AutoEQ (*.txt);;* (*)")
+        if not path:
+            return
+        try:
+            with open(path, encoding="utf-8", errors="replace") as f:
+                eq = engine_mod.parse_autoeq(f.read())
+        except (OSError, ValueError):
+            QMessageBox.warning(self, "Spatial Linux", t("autoeq_bad"))
+            return
+        name = os.path.splitext(os.path.basename(path))[0]
+        if name.lower() in ("parametriceq", "parametric_eq"):
+            # AutoEQ names every file the same; the folder is the model
+            name = os.path.basename(os.path.dirname(path)) or name
+        eq["name"] = name
+        skipped = eq.pop("skipped", 0)
+        self.settings["hp_eq"] = eq
+        self.settings["hp_eq_on"] = True
+        self.engine.set_hp_eq(eq, True)
+        if skipped:
+            QMessageBox.information(self, "Spatial Linux",
+                                    t("autoeq_skipped").format(n=skipped))
+
+    def _on_hp_eq_toggled(self, on: bool):
+        self.settings["hp_eq_on"] = on
+        self.engine.set_hp_eq(self.engine.hp_eq, on)
+
+    def _remove_hp_eq(self):
+        self.settings.pop("hp_eq", None)
+        self.engine.set_hp_eq(None, True)
+
+    def _set_bypass(self, on: bool):
+        self.engine.set_bypass(on)
+        self.engine.flush()
 
     def _schedule_flush(self):
         if not self._flush_timer.isActive():

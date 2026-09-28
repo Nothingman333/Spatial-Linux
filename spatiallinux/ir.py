@@ -206,20 +206,91 @@ def _diffuse_field_equalise(picked: dict, all_horizontal, max_correction_db=12.0
     return out
 
 
-def _load_measured_hrirs(sofa_path: str):
+def load_sofa(path: str):
+    """(ir, positions, rate) from a SOFA file: ir is (measurements, ears,
+    taps), positions (measurements, [azimuth, elevation]) in degrees with
+    azimuth counter-clockwise from the front."""
+    import numpy as np
+    import h5py
+
+    with h5py.File(path, "r") as f:
+        ir = np.array(f["Data.IR"])
+        pos = np.array(f["SourcePosition"])
+        rate = float(np.array(f["Data.SamplingRate"]).ravel()[0])
+    return ir, pos[:, :2], rate
+
+
+def load_mhr(path: str):
+    """The same from an OpenAL Soft MinPHR03 file (see its core/hrtf_loader
+    .cpp), the format its SADIE II set ships in. Its responses are minimum
+    phase with the arrival delays stored apart, in quarter samples; they are
+    put back here, with a fractional-delay phase shift, so the result is an
+    ordinary head-related impulse response again. Only one field and the
+    left-ear-only layout are handled -- what that file uses -- and the right
+    ear is the mirror image, as OpenAL Soft does it."""
+    import numpy as np
+
+    data = open(path, "rb").read()
+    if data[:8] != b"MinPHR03":
+        raise ValueError("not a MinPHR03 file")
+    rate, chan_type, taps, fields = struct.unpack_from("<IBBB", data, 8)
+    if chan_type != 0 or fields != 1:
+        raise ValueError("unsupported MinPHR03 layout")
+    p = 15 + 2                                   # field distance (unused)
+    ev_count = data[p]
+    p += 1
+    az_counts = list(data[p:p + ev_count])
+    p += ev_count
+    total = sum(az_counts)
+
+    raw = np.frombuffer(data[p:p + total * taps * 3], dtype=np.uint8)
+    raw = raw.reshape(total, taps, 3).astype(np.int32)
+    p += total * taps * 3
+    coeffs = raw[..., 0] | (raw[..., 1] << 8) | (raw[..., 2] << 16)
+    coeffs = np.where(coeffs >= 1 << 23, coeffs - (1 << 24), coeffs) / 8388608.0
+    delays = np.frombuffer(data[p:p + total], dtype=np.uint8) / 4.0
+
+    # elevations run evenly from straight down to straight up; azimuths
+    # evenly from the front, clockwise -- flipped here to the SOFA sense
+    positions = []
+    for e, n in enumerate(az_counts):
+        el = -90.0 + 180.0 * e / (ev_count - 1)
+        for a in range(n):
+            positions.append(((360.0 - 360.0 * a / n) % 360.0, el))
+    positions = np.array(positions)
+
+    length = taps + int(np.ceil(delays.max())) + 8
+    n_fft = 1 << int(np.ceil(np.log2(length * 2)))
+    freqs = np.fft.rfftfreq(n_fft)
+
+    def placed(i):
+        spec = np.fft.rfft(coeffs[i], n_fft) * np.exp(-2j * np.pi * freqs * delays[i])
+        return np.fft.irfft(spec, n_fft)[:length]
+
+    left = np.array([placed(i) for i in range(total)])
+
+    # the right ear at azimuth a is the left ear at -a (same elevation)
+    right = np.empty_like(left)
+    for i, (az, el) in enumerate(positions):
+        same = np.where(np.abs(positions[:, 1] - el) < 1e-6)[0]
+        delta = ((positions[same, 0] - (360.0 - az) + 180.0) % 360.0) - 180.0
+        right[i] = left[same[int(np.argmin(np.abs(delta)))]]
+    return np.stack([left, right], axis=1), positions, float(rate)
+
+
+def _load_measured_hrirs(sofa_path: str, speakers: dict | None = None):
     """Return {speaker: (left_ear, right_ear)} at the graph sample rate.
 
     The bulk propagation delay common to every measurement is removed while
     the difference between the ears is kept, so what survives is the real
     interaural delay rather than the distance to the loudspeaker.
     """
-    import numpy as np
-    import h5py
+    loader = load_mhr if sofa_path.endswith(".mhr") else load_sofa
+    return _pick_hrirs(*loader(sofa_path), speakers or SPEAKERS)
 
-    with h5py.File(sofa_path, "r") as f:
-        ir = np.array(f["Data.IR"])              # (measurements, ears, taps)
-        pos = np.array(f["SourcePosition"])
-        src_rate = float(np.array(f["Data.SamplingRate"]).ravel()[0])
+
+def _pick_hrirs(ir, pos, src_rate: float, speakers: dict):
+    import numpy as np
 
     horizontal = np.where(np.abs(pos[:, 1]) < 1.0)[0]
 
@@ -227,7 +298,7 @@ def _load_measured_hrirs(sofa_path: str):
         delta = ((pos[horizontal, 0] - azimuth + 180.0) % 360.0) - 180.0
         return horizontal[int(np.argmin(np.abs(delta)))]
 
-    picked = {name: ir[nearest(az)] for name, az in SPEAKERS.items()}
+    picked = {name: ir[nearest(az)] for name, az in speakers.items()}
 
     # Raw HRTF measurements carry the response of the measurement rig itself
     # -- for the MIT KEMAR set that is a pronounced few-dB-per-octave lift
@@ -329,7 +400,8 @@ def _analytic_channels():
     ]
 
 
-def generate_binaural_ir(path: str) -> str:
+def generate_binaural_ir(path: str, hrirs: dict | None = None,
+                         front_energy: float | None = None) -> str:
     """Write the 6-channel cue set used by the 3D Surround stage. The front
     cross-feed and the room are kept apart so the graph can turn the room
     down on its own (the 3D "Reverb" slider):
@@ -342,11 +414,16 @@ def generate_binaural_ir(path: str) -> str:
     ch5: right input -> right ear, rear speaker + room
 
     Uses measured HRTFs when the system provides them, and falls back to an
-    analytic head model otherwise.
+    analytic head model otherwise. `hrirs` picks another measured head
+    instead; `front_energy` then matches its cross-feed level to the
+    default head's, so switching heads changes the character of the 3D
+    stage, not how strong it is.
     """
     sofa = _find_sofa()
     channels = None
-    if sofa:
+    if hrirs is not None:
+        channels = _measured_channels(hrirs)
+    elif sofa:
         try:
             channels = _measured_channels(_load_measured_hrirs(sofa))
         except Exception:
@@ -364,6 +441,12 @@ def generate_binaural_ir(path: str) -> str:
     # Headroom is judged on what each ear receives with the room fully up,
     # and the one factor is applied to all six, so the balance between the
     # front and the room -- and between the ears -- survives the scaling.
+    if front_energy is not None:
+        mine = sum(v * v for c in channels[:2] for v in c)
+        if mine > 0:
+            k = math.sqrt(front_energy / mine)
+            channels = [[v * k for v in c] for c in channels]
+
     f_lr, f_rl, s_lr, s_ll, s_rl, s_rr = channels
     ears = [[a + b for a, b in zip(f_lr, s_lr)], s_ll,
             [a + b for a, b in zip(f_rl, s_rl)], s_rr]
@@ -378,6 +461,58 @@ def generate_binaural_ir(path: str) -> str:
         w.setframerate(SR)
         w.writeframes(b"".join(
             struct.pack("<hhhhhh", *(
+                int(max(-1.0, min(1.0, v)) * 32000) for v in frame))
+            for frame in zip(*channels)))
+    return path
+
+
+# --- discrete surround channels ---------------------------------------------
+
+# Where a 5.1 / 7.1 source's surround channels are heard from, in SOFA
+# azimuth: the side pair of 7.1 (and the rear pair of 5.1, which PipeWire
+# maps onto the same place) just behind the ears, the back pair further
+# round, as ITU-R BS.775 and the 7.1 layouts put them (135: between the
+# 110 a 5.1 source expects and the 150 of a 7.1 back pair).
+SURROUND_SPEAKERS = {"SL": 100.0, "BL": 135.0}
+# Level of each surround channel as heard. A plain downmix to stereo adds
+# them at -3 dB (0.707), so rendered at the same energy switching to this
+# neither jumps nor drops in level.
+SURROUND_CHANNEL_GAIN = 0.7071
+
+
+def generate_surround_ir(path: str, hrirs: dict) -> str:
+    """Write the 4-channel file that places the discrete surround channels:
+
+    ch0: side speaker -> near ear    ch1: side speaker -> far ear
+    ch2: back speaker -> near ear    ch3: back speaker -> far ear
+
+    The right-hand speakers use the same channels mirrored (the heads are
+    symmetric). `hrirs` must hold "SL" and "BL" pairs (left ear, right ear)
+    from _load_measured_hrirs(..., SURROUND_SPEAKERS). Each pair is scaled to
+    the energy a -3 dB downmix would give it; the near/far balance, the
+    interaural delay and the pinna cues are left exactly as measured.
+    """
+    channels = []
+    for name in ("SL", "BL"):
+        near, far = hrirs[name]                # a left speaker: left ear near
+        energy = sum(float(v) * float(v) for v in near) + \
+            sum(float(v) * float(v) for v in far)
+        k = SURROUND_CHANNEL_GAIN / math.sqrt(energy) if energy > 0 else 0.0
+        channels += [[float(v) * k for v in near], [float(v) * k for v in far]]
+
+    length = max(len(c) for c in channels)
+    channels = [c + [0.0] * (length - len(c)) for c in channels]
+    peak = max(max(abs(v) for v in c) for c in channels)
+    if peak > 0.99:          # never clip the file; far from happening
+        channels = [[v * 0.99 / peak for v in c] for c in channels]
+
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with wave.open(path, "wb") as w:
+        w.setnchannels(4)
+        w.setsampwidth(2)
+        w.setframerate(SR)
+        w.writeframes(b"".join(
+            struct.pack("<hhhh", *(
                 int(max(-1.0, min(1.0, v)) * 32000) for v in frame))
             for frame in zip(*channels)))
     return path

@@ -3,3 +3,6 @@ __pycache__/
 
 # Written by install.sh with this machine's path in it
 /spatiallinux.desktop
+
+# Downloaded by tools/build_ir.py
+/tools/cache/

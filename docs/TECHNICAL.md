@@ -21,12 +21,97 @@ behind. This is guaranteed in three places:
 - `_recover_from_previous_crash()` — even if the app is killed, the next
   launch cleans up whatever was left
 
-The sound chain is an explicit **2-in / 2-out stereo graph** (not the mono
-graph PipeWire duplicates automatically), because the stereo width and
-cross-feed stages have to work across the channels. Every user control is
-wired to a control port that can be written live, so **no setting ever
-rebuilds the graph**: the sound never drops out, and even loading a preset
-is seamless.
+The sound chain is an explicit **8-in / 2-out graph** (not the mono graph
+PipeWire duplicates automatically): the device takes **7.1**, and the stereo
+width and cross-feed stages have to work across the channels. Every user
+control is wired to a control port that can be written live, so **no
+setting rebuilds the graph**: the sound never drops out, and even loading a
+preset is seamless. The one exception is the choice of 3D head (below): the
+convolvers' files are fixed when the graph starts, so switching heads
+restarts it, a moment of silence.
+
+In order, the graph is: the 3D stage (the front pair) and the placement of
+the other surround channels → the tone chain (pre-amp, equaliser, bass,
+fidelity, subwoofer) → ambience → treble → night mode → headphone
+correction → limiter → the A/B switch. The tone chain used to come first;
+every stage in it is linear and identical on both channels, so moving it
+after the 3D stage changes nothing for stereo (checked in a sample-by-sample
+simulation of the old and new graphs: the largest difference was 10⁻¹²,
+rounding), and it means the surround channels are equalised too.
+
+### Surround sources (5.1 / 7.1)
+
+Before 2.0 the device was stereo, so a game or film playing 5.1 or 7.1 was
+folded down to two channels by PipeWire before Spatial Linux ever saw it,
+and the rear channels ended up in front. The device now takes 7.1
+(`FL FR FC LFE RL RR SL SR`), and each channel is heard from its own place:
+
+- **Front left / right** go through the 3D stage exactly as stereo does.
+- **Centre** is added to both ears dry, at −3 dB, like a phantom centre
+  between the front pair.
+- **LFE** is kept below 120 Hz and added to both ears at −6 dB.
+- **Side and back pairs** are convolved with the measured head's responses
+  from 100° and 135° (the side pair of 7.1, and between the 110° a 5.1
+  source expects and the 150° of a 7.1 back pair), near and far ear, each
+  pair scaled to the energy a −3 dB downmix would give it, so switching
+  between the two neither jumps nor drops in level.
+
+**Stereo does not change.** PipeWire's default (`channelmix.upmix-method =
+none`, and no centre or LFE cut-off) keeps a stereo stream on FL/FR of a 7.1
+device and leaves the other channels silent (see `channelmix-ops.c`), so
+for stereo those paths carry nothing. Someone who has turned on PipeWire's
+own upmixing (`psd` or `simple`) will now hear what it produces placed
+around them too.
+
+### 3D heads
+
+Heads differ as ears do, so the one that sounds most "in front of you and
+outside your head" differs from listener to listener. There are two,
+chosen in the Headphones panel:
+
+- **KEMAR** — the MIT KEMAR measurement, the original sound.
+- **KU 100** — SADIE II subject D1, a Neumann KU 100 dummy head (University
+  of York, Apache License 2.0; see `spatiallinux/data/LICENSE-SADIE-II.txt`).
+  It is read from the copy OpenAL Soft ships (`Default HRTF.mhr`, format
+  `MinPHR03`): minimum-phase responses with the arrival delays stored apart,
+  in quarter samples, which `ir.load_mhr` puts back with a fractional-delay
+  phase shift. The right ear is the mirror image of the left, as OpenAL
+  Soft does it.
+
+Both go through the same pipeline (diffuse-field equalisation, bulk delay
+removed, the same speaker directions), and the KU 100's cross-feed is scaled
+to exactly the KEMAR's energy, so switching heads changes the character of
+the 3D stage and not its strength. Measured on the built files: the side
+speaker reaches the far ear 0.5 ms (KEMAR) / 0.7 ms (KU 100) after the near
+one and 13 / 17 dB quieter, as a real head does.
+
+### Your own HRIR file
+
+"Own file" runs every channel through a 14-channel HRIR file in the
+**HeSuVi** layout instead of Spatial Linux's own 3D stage — the same mapping
+as PipeWire's own `sink-virtual-surround-7.1-hesuvi.conf` (the centre at ×2
+because HeSuVi splits it in two, the LFE on the centre's responses at half
+that). The 3D intensity crossfades between the plain downmix and the
+rendered sound. Spatial Linux ships no such files: many of the popular ones
+were recorded from commercial virtualisers and carry no licence, so the
+listener brings their own. The file is copied into the data folder, where
+the (host's) PipeWire can read it.
+
+### Headphone correction
+
+An AutoEQ `ParametricEQ.txt` (the format Equalizer APO reads too) evens out
+the headphones' own response. It sits after everything else and before the
+limiter, where a correction belongs. To load any file live, the bank has 10
+slots, each a peaking, a low-shelf and a high-shelf filter in a row: the
+file's filter uses the one of its kind and the other two stay at 0 dB, where
+a biquad is exactly transparent. The file's pre-amp is applied first.
+
+### A/B
+
+The A/B button, held, plays the plain original: the sound as it arrives,
+downmixed to stereo the way PipeWire would, with none of Spatial Linux's
+processing. It is a crossfade of two mixer gains at the very end of the
+graph, so it switches instantly and without a gap.
 
 ### How 3D Surround works
 
@@ -37,8 +122,8 @@ libmysofa's default set. Because a real outer ear was measured, it carries
 the cues that tell front from back — something no analytic model can
 provide.
 
-PipeWire's filter-chain is not built with libmysofa in this setup (there is
-no `sofa` node), so the SOFA file is read in [ir.py](../spatiallinux/ir.py)
+PipeWire's filter-chain is not built with libmysofa everywhere (there is
+often no `sofa` node), so the SOFA file is read in [ir.py](../spatiallinux/ir.py)
 and turned into a 6-channel WAV that the convolver can use. This is done
 once, by [`tools/build_ir.py`](../tools/build_ir.py), and the result ships
 with the app as `spatiallinux/data/binaural_ir.wav` — so users get the

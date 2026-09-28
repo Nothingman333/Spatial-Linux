@@ -1,5 +1,38 @@
 # Changelog
 
+## v2.0.0-beta.1
+
+A test release of the next big version. The stable 1.10.4 stays available
+as **Latest** on the Releases page. Built on a research round comparing
+the open ways to get closest to Dolby Atmos for Headphones on Linux; this
+beta takes the parts that fit Spatial Linux today.
+
+- **Real 5.1 / 7.1 surround.** The Spatial Linux device now takes 7.1, so a
+  game or film playing surround reaches it with every channel apart instead
+  of already folded into stereo. The centre is heard in the middle, the
+  side and back channels from beside and behind you, each through the
+  measured head from its own direction. **Stereo sounds exactly as
+  before** (checked sample by sample against 1.10.4).
+- **Choose the 3D head.** Next to the MIT KEMAR head there is now a
+  Neumann KU 100 (SADIE II, University of York). Heads differ like ears
+  do: pick the one that puts the sound most clearly in front of you. Both
+  are matched in strength, so switching changes the character, not the
+  amount.
+- **Your own HRIR file.** Load a 14-channel HRIR file in the HeSuVi layout
+  and every channel runs through it. Spatial Linux ships none of those
+  files; many were recorded from commercial virtualisers and carry no
+  licence.
+- **Headphone correction.** Load the AutoEQ `ParametricEQ.txt` for your
+  headphone model (autoeq.app) to even out its own sound, On / Off at any
+  time, without a gap.
+- **A/B.** Hold the new A/B button to hear the original sound without any
+  processing; let go to hear Spatial Linux again.
+- All of these are in the new **headphones button** in the header. They
+  belong to you and your headphones, not to a sound, so they are kept in
+  the settings rather than in presets.
+- Switching the 3D head restarts the sound for a moment; everything else
+  still changes live.
+
 ## v1.10.4
 
 - **Steadier sound under load**: the audio processing now asks for
