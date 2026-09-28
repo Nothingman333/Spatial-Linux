@@ -26,9 +26,11 @@ Blocking and slow (seconds) by nature: call it from a background thread.
 from __future__ import annotations
 
 import json
+import os
 import socket
 import struct
 import subprocess
+import time
 
 # the service the Sony app connects to, newer then older generation
 SERVICE_UUIDS = ("956C7B26-D49A-4BA8-B03F-B17D393CB6E2",
@@ -46,6 +48,23 @@ T_ACK, T_COMMAND = 0x01, 0x0C
 TIMEOUT = 6.0
 # The channel a pair of headphones answered on, so it is looked up once.
 _channels: dict[str, int] = {}
+
+
+# What happened on each attempt, for when the headphones cannot be reached
+# (see log); kept small.
+LOG_PATH = os.path.expanduser("~/.local/share/spatiallinux/noise-cancelling.log")
+LOG_MAX = 64 * 1024
+
+
+def log(message: str):
+    try:
+        os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
+        if os.path.exists(LOG_PATH) and os.path.getsize(LOG_PATH) > LOG_MAX:
+            os.replace(LOG_PATH, LOG_PATH + ".old")
+        with open(LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(time.strftime("%Y-%m-%d %H:%M:%S ") + message + "\n")
+    except OSError:
+        pass
 
 
 class SonyError(Exception):
@@ -97,9 +116,13 @@ def find_headphones(host_command) -> list[dict]:
     try:
         text = subprocess.run(host_command(["pw-dump"]), capture_output=True,
                               text=True, timeout=10).stdout
-    except (OSError, subprocess.TimeoutExpired):
+    except (OSError, subprocess.TimeoutExpired) as e:
+        log(f"pw-dump failed: {e}")
         return []
-    return bluetooth_outputs(text)
+    found = bluetooth_outputs(text)
+    log("bluetooth outputs: " + (", ".join(f"{d['name']} [{d['address']}]"
+                                            for d in found) or "none"))
+    return found
 
 
 # -- SDP: which RFCOMM channel ---------------------------------------------
@@ -187,8 +210,11 @@ def rfcomm_channel(address: str, uuid: str) -> int | None:
             return None
         _k, lists, _ = _element(collected, 0)
         return _rfcomm_in(lists)
-    except OSError:
-        return None
+    except OSError as e:
+        # not "no such service": the headphones did not answer at all, which
+        # is worth trying again rather than taking them for another make
+        log(f"{address}: SDP for {uuid[:8]} failed: {e}")
+        raise SonyError("connect_failed", f"SDP: {e}")
     finally:
         s.close()
 
@@ -292,6 +318,7 @@ def _open_once(address: str) -> _Session:
             if channel:
                 break
     if not channel:
+        log(f"{address}: no Sony service found")
         raise SonyError("not_sony")
     s = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM,
                       socket.BTPROTO_RFCOMM)
@@ -300,14 +327,17 @@ def _open_once(address: str) -> _Session:
         s.connect((address, channel))
     except OSError as e:
         s.close()
+        log(f"{address}: RFCOMM {channel} connect failed: {e}")
         raise SonyError("connect_failed", f"RFCOMM {channel}: {e}")
     session = _Session(s)
     try:
         session.init()
     except (OSError, SonyError) as e:
         s.close()
+        log(f"{address}: init failed on channel {channel}: {e!r}")
         raise SonyError("connect_failed", f"init: {str(e) or type(e).__name__}")
     _channels[address] = channel
+    log(f"{address}: connected on channel {channel}, protocol v{session.version}")
     return session
 
 
@@ -361,6 +391,7 @@ def get_state(address: str) -> dict:
         reply = session.request(bytes([0x66, 0x15]), want=0x67)
         return parse_state(2, reply or b"")
     except (OSError, SonyError) as e:
+        log(f"{address}: reading the mode failed: {e!r}")
         raise SonyError("connect_failed", f"read: {str(e) or type(e).__name__}")
     finally:
         session.sock.close()
@@ -378,6 +409,7 @@ def set_mode(address: str, mode: str, level: int = AMBIENT_LEVEL,
     try:
         session.request(set_payload(session.version, mode, level, voice))
     except (OSError, SonyError) as e:
+        log(f"{address}: setting {mode} failed: {e!r}")
         raise SonyError("connect_failed", f"set: {str(e) or type(e).__name__}")
     finally:
         session.sock.close()

@@ -1,5 +1,26 @@
 # Changelog
 
+## v2.0.0-beta.10
+
+- **Noise cancelling only shows for headphones it can control.** The card
+  appears once the headphones have actually answered; headphones whose
+  noise cancelling cannot be set, or that could not be reached, show
+  nothing on the main window.
+- **Pick the headphones yourself:** the headphones panel has a new
+  Noise cancelling row -- Automatic, or any connected Bluetooth
+  headphones -- with what is going on (found, looking, could not reach
+  them and why) and Try again. Opening the panel looks again when nothing
+  has been found, as it did up to beta.7.
+- **Headphones that do not answer the first question are no longer taken
+  for another make:** a failed service look-up is now a failed connection,
+  tried again, instead of "not Sony".
+- **A log for noise cancelling**, `~/.local/share/spatiallinux/noise-cancelling.log`:
+  every attempt, the devices seen, and what the system reported.
+- **The equaliser is a drop-down** from its own button in the header (a
+  curve through three points), like the headphones and app-volume panels;
+  the window is shorter without it.
+- **Drop-downs are more strongly frosted.**
+
 ## v2.0.0-beta.9
 
 - **Smoother animations.** Every animation now runs on one shared clock,

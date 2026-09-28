@@ -480,7 +480,8 @@ class GlassPopup(QFrame):
             self._bg = None
             return
         grabbed = src.grab(rect)
-        self._bg = blur(grabbed, 16)
+        # strongly frosted: shapes behind show only as soft colour
+        self._bg = blur(grabbed, 48)
         self._bg_rect = rect.translated(-top_left)
         self.update()
 

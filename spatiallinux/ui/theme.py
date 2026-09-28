@@ -293,22 +293,30 @@ QComboBox QAbstractItemView {{
 
 /* -- drop-down panels (app volumes, headphones) ----------------------------- */
 /* frosted glass, painted by GlassPopup (controls.py) */
-QFrame#glassPopup, QWidget#glassBody {{
+QFrame#glassPopup, QWidget#glassBody, QFrame#eqContent {{
     background: transparent;
     border: none;
 }}
 QFrame#glassPopup QPushButton#smallButton,
+QFrame#glassPopup QFrame#eqContent QPushButton,
 QFrame#glassPopup QPushButton#rowToggle {{
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid rgba(255, 255, 255, 0.15);
 }}
 QFrame#glassPopup QPushButton#smallButton:hover,
+QFrame#glassPopup QFrame#eqContent QPushButton:hover,
 QFrame#glassPopup QPushButton#rowToggle:hover {{
     background: rgba(255, 255, 255, 0.16);
 }}
-QFrame#glassPopup QPushButton#rowToggle:checked {{
+QFrame#glassPopup QPushButton#rowToggle:checked,
+QFrame#glassPopup QFrame#eqContent QPushButton:checked {{
     background: {CHOSEN};
+    color: {CHOSEN_TEXT};
     border: 1px solid {CHOSEN};
+}}
+QFrame#glassPopup QComboBox {{
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
 }}
 QFrame#glassPopup QPushButton#mute {{
     background: rgba(255, 255, 255, 0.08);

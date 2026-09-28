@@ -11,7 +11,7 @@ popup, which closes the moment another window takes the focus).
 from PyQt6.QtCore import Qt, QPoint, QRectF, QTimer, pyqtSignal
 from PyQt6.QtGui import QPainter, QColor, QPen, QPainterPath
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox,
 )
 
 from . import theme
@@ -86,11 +86,14 @@ class HeadphonesPanel(GlassPopup):
     loadEq = pyqtSignal()                 # wants a file dialog
     eqToggled = pyqtSignal(bool)
     eqRemoved = pyqtSignal()
+    sonyDevice = pyqtSignal(str)          # address, or "" for automatic
+    sonyRetry = pyqtSignal()
 
     WIDTH = 540
 
     def __init__(self, style: str, head: str, hrir_name: str | None,
-                 eq_name: str | None, eq_on: bool, parent=None):
+                 eq_name: str | None, eq_on: bool, nc: dict | None = None,
+                 parent=None):
         super().__init__(parent)
         self.setFixedWidth(self.WIDTH)
 
@@ -169,10 +172,75 @@ class HeadphonesPanel(GlassPopup):
         outer.addLayout(eq_row)
         outer.addWidget(self._hint(t("hp_eq_hint")))
 
+        # -- noise cancelling ---------------------------------------------
+        # which headphones the card on the main window controls: found on
+        # their own, or picked here when they are not
+        outer.addSpacing(4)
+        outer.addWidget(self._heading(t("hp_nc")))
+        nc_row = QHBoxLayout()
+        nc_row.setSpacing(6)
+        self.nc_combo = QComboBox()
+        self.nc_combo.setMinimumWidth(220)
+        self.nc_combo.activated.connect(self._pick_nc_device)
+        nc_row.addWidget(self.nc_combo, 1)
+        self.nc_spinner = Spinner()
+        nc_row.addWidget(self.nc_spinner)
+        self.nc_retry = QPushButton(t("sony_retry"))
+        self.nc_retry.setObjectName("smallButton")
+        self.nc_retry.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.nc_retry.clicked.connect(self.sonyRetry.emit)
+        self._keep_width(self.nc_retry)
+        nc_row.addWidget(self.nc_retry)
+        outer.addLayout(nc_row)
+        self.nc_status = self._hint("")
+        self.nc_status.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse)
+        outer.addWidget(self.nc_status)
+        self.set_nc(nc or {})
+
         # -- surround ----------------------------------------------------
         outer.addSpacing(4)
         outer.addWidget(self._heading("5.1 · 7.1"))
         outer.addWidget(self._hint(t("hp_surround")))
+
+    def set_nc(self, nc: dict):
+        """Fill the noise-cancelling section from the window's _nc_status."""
+        self.nc_combo.blockSignals(True)
+        self.nc_combo.clear()
+        self.nc_combo.addItem(t("hp_nc_auto"), "")
+        for dev in nc.get("devices") or []:
+            self.nc_combo.addItem(dev.get("name") or dev["address"], dev["address"])
+        chosen = nc.get("chosen") or ""
+        self.nc_combo.setCurrentIndex(max(0, self.nc_combo.findData(chosen)))
+        self.nc_combo.blockSignals(False)
+
+        state = nc.get("state") or {}
+        searching = bool(nc.get("searching"))
+        status = state.get("status")
+        name = state.get("name") or ""
+        if not nc.get("available", True):
+            text = t("sony_no_bluetooth")
+        elif searching or status in ("reading", "applying"):
+            text = t("hp_nc_searching")
+        elif state and status is None:
+            text = t("hp_nc_found").format(name=name)
+        elif status == "not_sony":
+            text = t("hp_nc_not_sony").format(name=name)
+        elif status == "failed":
+            text = t("hp_nc_failed").format(name=name)
+            if state.get("error"):
+                text += f" ({state['error']})"
+        else:
+            text = t("hp_nc_none")
+        self.nc_status.setText(text)
+        self.nc_status.setToolTip(t("hp_nc_log").format(path=nc["log"])
+                                  if nc.get("log") else "")
+        self.nc_spinner.setVisible(searching)
+        self.nc_retry.setVisible(not searching and nc.get("available", True))
+        self.adjustSize()
+
+    def _pick_nc_device(self, index: int):
+        self.sonyDevice.emit(self.nc_combo.itemData(index) or "")
 
     @staticmethod
     def _keep_width(btn: QPushButton):

@@ -51,7 +51,7 @@ what kind of app this is.</sub>
 | **Fidelity** | Lifts the deepest lows and the finest highs, the ranges the ear hears least. |
 | **Bass Boost** | A clean low shelf below 110 Hz. |
 | **Night Mode** | Softer, even sound for late hours: pulls the equaliser down and gently compresses, so quiet details rise and loud peaks come down. |
-| **Equaliser** | 10 bands from 32 Hz to 16 kHz. Drag a point, double-click to reset, switch it **On / Off** without losing the curve. |
+| **Equaliser** | 10 bands from 32 Hz to 16 kHz, in a drop-down from its header button. Drag a point, double-click to reset, switch it **On / Off** without losing the curve. |
 | **Presets** | Flat, Music, Movie, Gaming, Night, Bass, and your own. Picking one applies it instantly. The built-in names follow the interface language. |
 | **App volumes** | Each app that is playing sound gets its own volume slider and mute button, from the header's mixer button. |
 | **Pre-Amp and volume** | ±12 dB input gain, and the volume of the Spatial Linux device. |
@@ -192,7 +192,7 @@ starts Spatial Linux in the container.
 
 1. Press the **power button**. All your audio now runs through Spatial Linux.
 2. Pick a **mode** on the top row and adjust it with the sliders in its panel.
-3. Shape the sound on the **equaliser**, or pick a **preset**. Save your own
+3. Shape the sound on the **equaliser** (its button in the header), or pick a **preset**. Save your own
    with **Save**.
 4. Use the **mixer button** (three faders, top right) to set each app's own
    volume or mute it.

@@ -123,6 +123,11 @@ module:
   or off, then noise cancelling or ambient sound, focus on voice, and the
   ambient level (20 of 20).
 
+Every attempt is written to `~/.local/share/spatiallinux/noise-cancelling.log`
+(the devices seen, the channel, and what the system reported), for when
+the headphones cannot be reached. The card only shows headphones that have
+answered; the headphones panel lets them be picked by hand.
+
 It runs in a background thread, once when the app starts (and, while no
 headphones have been found, again when the window comes back to the front,
 at most every half minute). A glass card in the header shows the mode,

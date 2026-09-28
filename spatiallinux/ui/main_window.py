@@ -22,7 +22,7 @@ from PyQt6.QtGui import (
     QIcon, QPixmap,
 )
 from PyQt6.QtSvg import QSvgRenderer
-from PyQt6.QtCore import QUrl, QRectF, QPointF
+from PyQt6.QtCore import QUrl, QRectF, QPointF, QPoint
 
 from . import theme
 from . import i18n
@@ -34,7 +34,7 @@ from .intro import IntroOverlay
 from .mixer import MixerButton, MixerPanel
 from .headphones import HeadphonesButton, HeadphonesPanel
 from .hero import Hero, Chip, Glass, ModeTab, PowerPill
-from .controls import ChoiceStrip, GlassIconButton
+from .controls import ChoiceStrip, GlassIconButton, GlassPopup
 from .noise import NoiseCard
 
 
@@ -213,8 +213,29 @@ class InfoButton(GlassIconButton):
         p.drawEllipse(QPointF(cx, cy - 4.0), 1.2, 1.2)
 
 
+class EqButton(GlassIconButton):
+    """Opens the equaliser: a small curve through three points."""
+
+    def draw_icon(self, p: QPainter, cx: float, cy: float):
+        pen = QPen(QColor(theme.TEXT))
+        pen.setWidthF(1.4)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        p.setPen(pen)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        curve = QPainterPath()
+        curve.moveTo(cx - 8, cy + 2)
+        curve.cubicTo(cx - 4, cy - 7, cx - 1, cy - 7, cx + 1, cy)
+        curve.cubicTo(cx + 3, cy + 6, cx + 6, cy + 5, cx + 8, cy - 2)
+        p.drawPath(curve)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QColor(theme.TEXT))
+        for x, y in ((cx - 8, cy + 2), (cx + 1, cy), (cx + 8, cy - 2)):
+            p.drawEllipse(QPointF(x, y), 1.8, 1.8)
+
+
 class MainWindow(QMainWindow):
-    BASE_HEIGHT = 560
+    BASE_HEIGHT = 0
+    EQ_WIDTH = 760
 
     # key, glyph, label
     FEATURES = [
@@ -335,17 +356,22 @@ class MainWindow(QMainWindow):
         self.detail_holder.setMaximumHeight(0)
         outer.addWidget(self.detail_holder)
 
+        # the equaliser is a drop-down now, from its button in the header
         self.eq_panel = self._build_eq_panel()
-        # never less than its own controls need, or they overlap
+        self.eq_panel.setObjectName("eqContent")
         self.eq_panel.setMinimumHeight(
             max(250, self.eq_panel.layout().minimumSize().height()))
-        outer.addWidget(self.eq_panel, 1)
+        self.eq_popup = GlassPopup(self)
+        self.eq_popup.setFixedWidth(self.EQ_WIDTH)
+        pop = QVBoxLayout(self.eq_popup.body)
+        pop.setContentsMargins(0, 0, 0, 0)
+        pop.addWidget(self.eq_panel)
         self._outer_spacing = outer.spacing()
-        # The window's height with no mode panel open: what the header and
-        # the equaliser need, measured rather than assumed, so a different
-        # font or header can never squeeze the mode panel.
+        # The window's height with no mode panel open: what the header
+        # needs, measured rather than assumed, so a different font or
+        # header can never squeeze the mode panel.
         outer.activate()
-        self.BASE_HEIGHT = max(self.BASE_HEIGHT, outer.minimumSize().height())
+        self.BASE_HEIGHT = outer.minimumSize().height()
 
     # -- header -------------------------------------------------------------
     def _build_hero(self) -> QWidget:
@@ -391,6 +417,14 @@ class MainWindow(QMainWindow):
         self._sony_busy = False
         self._sony_scanned = -1e9
         self._sony_tries = 0
+        self._sony_searching = False
+        self._sony_devices = []           # Bluetooth outputs last seen
+
+        # the equaliser, in a drop-down panel
+        self.eq_open_btn = EqButton()
+        self.eq_open_btn.setToolTip(t("equaliser_title"))
+        self.eq_open_btn.clicked.connect(self._open_eq)
+        top.addWidget(self.eq_open_btn)
 
         # per-app volumes, in a drop-down panel
         self.mixer_btn = MixerButton()
@@ -527,7 +561,8 @@ class MainWindow(QMainWindow):
         lay.addLayout(bottom)
 
         # frosted glass under everything that sits on the picture
-        for w in (self.hp_btn, self.mixer_btn, self.lang_btn, self.info_btn,
+        for w in (self.hp_btn, self.eq_open_btn, self.mixer_btn,
+                  self.lang_btn, self.info_btn,
                   self.output_chip, vol, pre, self.power_btn):
             hero.add_glass(w)
         hero.add_glass(self.noise_card, 18.0)
@@ -732,6 +767,7 @@ class MainWindow(QMainWindow):
         self.info_btn.setToolTip(t("info_tip"))
         self.mixer_btn.setToolTip(t("mixer_tip"))
         self.hp_btn.setToolTip(t("hp_tip"))
+        self.eq_open_btn.setToolTip(t("equaliser_title"))
         self.mode_note.setText(t("one_mode_note"))
         self.eq_head.setText(t("equaliser_title"))
         self.eq_hint.setText(t("eq_hint"))
@@ -772,6 +808,15 @@ class MainWindow(QMainWindow):
         self._mixer = MixerPanel(self.engine, self)
         self._mixer.open_below(self.mixer_btn)
 
+    def _open_eq(self):
+        pos = self.eq_open_btn.mapToGlobal(
+            QPoint(self.eq_open_btn.width(), self.eq_open_btn.height() + 8))
+        self.eq_popup.adjustSize()
+        # right edge under the button, but never past the window's left edge
+        left = max(self.mapToGlobal(QPoint(12, 0)).x(), pos.x() - self.EQ_WIDTH)
+        self.eq_popup.move(left, pos.y())
+        self.eq_popup.show()
+
     # -- headphones: 3D style and head, own HRIR, correction ----------------------
     def _apply_listener_settings(self):
         head = self.settings.get("head")
@@ -796,17 +841,28 @@ class MainWindow(QMainWindow):
         if self._hp_panel is not None:
             self._hp_panel.deleteLater()
         eq = self.engine.hp_eq
+        if not self._sony_devices and sony.available():
+            try:
+                self._sony_devices = sony.find_headphones(engine_mod.host_command)
+            except Exception:
+                pass
         panel = self._hp_panel = HeadphonesPanel(
             self.engine.style, self.engine.head,
             self.settings.get("custom_hrir_name"),
-            eq.get("name") if eq else None, self.engine.hp_eq_on, self)
+            eq.get("name") if eq else None, self.engine.hp_eq_on,
+            self._nc_status(), self)
         panel.stylePicked.connect(self._on_style_picked)
         panel.headPicked.connect(self._on_head_picked)
         panel.chooseHrir.connect(self._choose_hrir)
         panel.loadEq.connect(self._load_hp_eq)
         panel.eqToggled.connect(self._on_hp_eq_toggled)
         panel.eqRemoved.connect(self._remove_hp_eq)
+        panel.sonyDevice.connect(self._on_sony_device)
+        panel.sonyRetry.connect(lambda: self._sony_refresh(force=True))
         panel.open_below(self.hp_btn)
+        # as before 2.0 beta 8: opening the panel looks again if nothing
+        # has been found yet (at most every half minute)
+        self._sony_refresh()
 
     # -- Sony noise cancelling (see sony.py) ------------------------------------
     def _sony_run(self, work):
@@ -826,11 +882,12 @@ class MainWindow(QMainWindow):
         threading.Thread(target=run, daemon=True).start()
 
     def _sony_refresh(self, force: bool = False, auto: bool = False):
-        """Find Sony headphones among the Bluetooth outputs and read their
-        mode -- the output in use first. Done once, at start: after that the
+        """Find headphones whose noise cancelling can be set and read their
+        mode: the ones picked in the headphones panel, else every Bluetooth
+        output, the one in use first. Done once, at start: after that the
         card shows what is known, and asks again only when told to (Try
-        again), or -- while none have been found -- when the window comes
-        back to the front, at most every half minute."""
+        again, another choice), or -- while none have been found -- when
+        the window comes back to the front, at most every half minute."""
         import time
         if not sony.available():
             return
@@ -844,31 +901,38 @@ class MainWindow(QMainWindow):
         if not auto:
             # a fresh round of retries -- one more try, when asked by hand
             self._sony_tries = len(self.SONY_RETRIES_S) - 1 if force else 0
+        self._sony_searching = True
         if self._sony:
             self._sony = dict(self._sony, status="reading")
-            self._show_sony()
+        self._show_sony()
         current = self.engine.current_output_label() or ""
+        chosen = self.settings.get("sony_device")
+        if not (isinstance(chosen, dict) and chosen.get("address")):
+            chosen = None
 
         def work():
-            devices = sony.find_headphones(engine_mod.host_command)
-            devices.sort(key=lambda d: d["name"] != current)
+            found = sony.find_headphones(engine_mod.host_command)
+            self._sony_devices = found
+            if chosen:
+                devices = [dict(chosen)]
+            else:
+                devices = sorted(found, key=lambda d: d["name"] != current)
+            confirmed = bool(self._sony and self._sony.get("confirmed"))
             for dev in devices:
-                # Sony by its name: show the section, turning, right away,
-                # rather than an empty panel while the headphones answer
-                if sony.looks_like_sony(dev["name"]) and not self._sony:
-                    self._sony_relay.progress.emit(
-                        dict(dev, mode=None, status="reading"))
                 try:
                     state = sony.get_state(dev["address"])
                 except sony.SonyError as e:
                     if str(e) == "not_sony":
+                        if chosen:
+                            return dict(dev, mode=None, status="not_sony")
                         continue
                     return dict(dev, mode=None, status="failed",
-                                error=e.detail, scan=True)
+                                error=e.detail, scan=True,
+                                confirmed=confirmed)
                 # the level and focus on voice as read, else as last set here
                 state.setdefault("level", self.settings.get("sony_level", 20))
                 state.setdefault("voice", self.settings.get("sony_voice", False))
-                return dict(dev, status=None, **state)
+                return dict(dev, status=None, confirmed=True, **state)
             return None
         self._sony_run(work)
 
@@ -910,6 +974,18 @@ class MainWindow(QMainWindow):
             return dict(dev, status=None)
         self._sony_run(work)
 
+    def _on_sony_device(self, address: str):
+        """A choice in the headphones panel: "" for automatic."""
+        if address:
+            known = {d["address"]: d for d in self._sony_devices}
+            dev = known.get(address) or {"address": address, "name": address}
+            self.settings["sony_device"] = {"address": dev["address"],
+                                            "name": dev["name"]}
+        else:
+            self.settings.pop("sony_device", None)
+        self._sony = None
+        self._sony_refresh(force=True)
+
     def _on_sony_progress(self, state):
         self._sony = state
         self._show_sony()
@@ -921,6 +997,7 @@ class MainWindow(QMainWindow):
 
     def _on_sony_result(self, result):
         self._sony_busy = False
+        self._sony_searching = False
         if result and result.get("status") == "failed" and result.get("scan"):
             tries = self._sony_tries
             if tries < len(self.SONY_RETRIES_S):
@@ -938,7 +1015,29 @@ class MainWindow(QMainWindow):
         self._show_sony()
 
     def _show_sony(self):
-        self.noise_card.set_sony(self._sony)
+        """The card only for headphones that have answered: ones whose noise
+        cancelling cannot be set, or that were never reached, show nothing
+        there (the headphones panel says why, and lets them be picked)."""
+        state = self._sony
+        confirmed = bool(state and state.get("confirmed"))
+        self.noise_card.set_sony(state if confirmed else None)
+        panel = self._hp_panel
+        if panel is not None and panel.isVisible():
+            panel.set_nc(self._nc_status())
+
+    def _nc_status(self) -> dict:
+        """What the headphones panel shows about noise cancelling."""
+        chosen = self.settings.get("sony_device")
+        devices = list(self._sony_devices)
+        if isinstance(chosen, dict) and chosen.get("address") and \
+                chosen["address"] not in {d["address"] for d in devices}:
+            devices.append(chosen)
+        return {"available": sony.available(),
+                "devices": devices,
+                "chosen": chosen.get("address") if isinstance(chosen, dict) else "",
+                "state": self._sony,
+                "searching": self._sony_searching or self._sony_busy,
+                "log": sony.LOG_PATH}
 
     def _on_style_picked(self, style: str):
         if style == self.engine.style:
